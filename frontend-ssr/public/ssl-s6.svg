@@ -4,7 +4,7 @@
     <g id="ssl-s6" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="ipw.cn" transform="translate(5.000000, 4.000000)">
             <rect stroke="#757575" x="0.5" y="0.5" width="74" height="27" rx="5"></rect>
-            <text id="SSL" font-family="PingFangSC-Semibold, PingFang SC" font-size="14" font-weight="500" fill="#757575">
+            <text id="SSL" font-family="PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans SC, sans-serif" font-size="14" font-weight="500" fill="#757575">
                 <tspan x="34" y="19">SSL</tspan>
             </text>
             <g transform="translate(15.000000, 5.000000)" fill="#757575" fill-rule="nonzero" id="形状">
