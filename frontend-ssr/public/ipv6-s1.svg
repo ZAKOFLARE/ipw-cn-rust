@@ -4,9 +4,9 @@
     <g id="07C160-ipv6" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="编组-2备份" transform="translate(5.000000, 4.000000)">
             <rect id="矩形备份" stroke="#07C160" x="0.5" y="0.5" width="180" height="27" rx="5"></rect>
-            <text id="本站已支持-IPv6-访问" font-family="PingFangSC-Regular, PingFang SC" font-size="14" font-weight="normal" fill="#07C160">
+            <text id="本站已支持-IPv6-访问" font-family="PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans SC, sans-serif" font-size="14" font-weight="normal" fill="#07C160">
                 <tspan x="32" y="19">本站已支持 </tspan>
-                <tspan x="106.662" y="19" font-family="PingFangSC-Semibold, PingFang SC" font-weight="500">IPv6 </tspan>
+                <tspan x="106.662" y="19" font-family="PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans SC, sans-serif" font-weight="500">IPv6 </tspan>
                 <tspan x="139.576" y="19">访问</tspan>
             </text>
             <g id="编组备份" transform="translate(13.000000, 5.000000)" fill="#07C160" fill-rule="nonzero">
