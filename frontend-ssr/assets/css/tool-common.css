@@ -49,6 +49,8 @@
 /* 结果区域 */
 .result-section {
   margin-top: 30px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 表格样式 */

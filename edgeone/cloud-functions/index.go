@@ -51,7 +51,9 @@ var (
 	SINGLE_STACK string
 	sslCache     sync.Map
 	pingCache    sync.Map
+	udpCache     sync.Map
 	speedCache   sync.Map
+	whoisCache   sync.Map
 	DNS_SERVER   string
 	defaultPort  = fmt.Sprintf("%d", 5<<4)
 	V6Client     *resty.Client
@@ -112,14 +114,29 @@ type pingCacheEntry struct {
 	timestamp time.Time
 }
 
+type udpCacheEntry struct {
+	result    *UDPingDualResult
+	timestamp time.Time
+}
+
 type speedCacheEntry struct {
 	result    *WebsiteSpeedTestResult
+	timestamp time.Time
+}
+
+type whoisCacheEntry struct {
+	result    *webtest.WhoisResult
 	timestamp time.Time
 }
 
 type TCPingDualResult struct {
 	IPv4 *webtest.TCPingStats `json:"ipv4"`
 	IPv6 *webtest.TCPingStats `json:"ipv6"`
+}
+
+type UDPingDualResult struct {
+	IPv4 *webtest.UDPingStats `json:"ipv4"`
+	IPv6 *webtest.UDPingStats `json:"ipv6"`
 }
 
 type WebsiteSpeedTestResult struct {
@@ -788,7 +805,7 @@ func websiteSpeedTestHandler(c *gin.Context) {
 
 	if cached, ok := speedCache.Load(cacheKey); ok {
 		entry := cached.(speedCacheEntry)
-		if time.Since(entry.timestamp) < 1*time.Minute {
+		if time.Since(entry.timestamp) < 5*time.Minute {
 			c.JSON(200, entry.result)
 			return
 		}
@@ -954,7 +971,7 @@ func pingHandler(c *gin.Context) {
 	cacheKey := fmt.Sprintf("%s:%s:%d", host, port, count)
 	if cached, ok := pingCache.Load(cacheKey); ok {
 		entry := cached.(pingCacheEntry)
-		if time.Since(entry.timestamp) < 1*time.Minute {
+		if time.Since(entry.timestamp) < 5*time.Minute {
 			c.JSON(200, entry.result)
 			return
 		}
@@ -1030,6 +1047,142 @@ func pingHandler(c *gin.Context) {
 	c.JSON(200, result)
 }
 
+func udpingHandler(c *gin.Context) {
+	host := c.Param("ip")
+	port := c.Query("port")
+	if host == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "IP or hostname parameter is required",
+		})
+		return
+	}
+	if port == "" {
+		port = "53"
+	}
+
+	count := 4
+	if countStr := c.Query("count"); countStr != "" {
+		n, err := strconv.Atoi(countStr)
+		if err != nil || n < 1 || n > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "count must be an integer between 1 and 20",
+			})
+			return
+		}
+		count = n
+	}
+
+	timeout := 3 * time.Second
+	if timeoutStr := c.Query("timeout"); timeoutStr != "" {
+		d, err := time.ParseDuration(timeoutStr)
+		if err != nil || d <= 0 || d > 30*time.Second {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "timeout must be a duration between 1ms and 30s (e.g. 2s)",
+			})
+			return
+		}
+		timeout = d
+	}
+
+	cacheKey := fmt.Sprintf("udp:%s:%s:%d:%s", host, port, count, timeout.String())
+	if cached, ok := udpCache.Load(cacheKey); ok {
+		entry := cached.(udpCacheEntry)
+		if time.Since(entry.timestamp) < 5*time.Minute {
+			c.JSON(200, entry.result)
+			return
+		}
+		udpCache.Delete(cacheKey)
+	}
+
+	result := &UDPingDualResult{}
+
+	switch SINGLE_STACK {
+	case "ipv4":
+		ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
+		if errV4 != nil {
+			ipv4 = &webtest.UDPingStats{
+				IP: "Error: " + errV4.Error(),
+			}
+		}
+		result.IPv4 = ipv4
+		result.IPv6 = &webtest.UDPingStats{
+			IP: "Skipped due to SINGLE_STACK=ipv4",
+		}
+	case "ipv6":
+		ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
+		if errV6 != nil {
+			ipv6 = &webtest.UDPingStats{
+				IP: "Error: " + errV6.Error(),
+			}
+		}
+		result.IPv6 = ipv6
+		result.IPv4 = &webtest.UDPingStats{
+			IP: "Skipped due to SINGLE_STACK=ipv6",
+		}
+	default:
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
+			if errV6 != nil {
+				ipv6 = &webtest.UDPingStats{
+					IP: "Error: " + errV6.Error(),
+				}
+			}
+			result.IPv6 = ipv6
+		}()
+
+		go func() {
+			defer wg.Done()
+			ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
+			if errV4 != nil {
+				ipv4 = &webtest.UDPingStats{
+					IP: "Error: " + errV4.Error(),
+				}
+			}
+			result.IPv4 = ipv4
+		}()
+
+		wg.Wait()
+	}
+
+	udpCache.Store(cacheKey, udpCacheEntry{result: result, timestamp: time.Now()})
+
+	c.JSON(200, result)
+}
+
+func whoisHandler(c *gin.Context) {
+	domain := c.Param("domain")
+	if domain == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Domain parameter is required",
+		})
+		return
+	}
+
+	if cached, ok := whoisCache.Load(domain); ok {
+		entry := cached.(whoisCacheEntry)
+		if time.Since(entry.timestamp) < 5*time.Minute {
+			c.JSON(200, entry.result)
+			return
+		}
+		whoisCache.Delete(domain)
+	}
+
+	result, err := webtest.QueryWhois(domain)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	whoisCache.Store(domain, whoisCacheEntry{result: result, timestamp: time.Now()})
+	c.JSON(http.StatusOK, result)
+}
+
 func healchCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
@@ -1070,7 +1223,9 @@ func main() {
 	r.GET("/v1/detail/*url", checkWebsiteHandler)
 	r.GET("/v1/ssl/*url", sslCheckHandler)
 	r.GET("/v1/tcping/:ip", pingHandler)
+	r.GET("/v1/udping/:ip", udpingHandler)
 	r.GET("/v1/dns/:type/*domain", dnsQueryHandler)
+	r.GET("/v1/whois/:domain", whoisHandler)
 	r.GET("/v1/speed/:version/*url", websiteSpeedTestHandler)
 	r.GET("/", healchCheck)
 

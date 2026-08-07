@@ -5,7 +5,7 @@ import {config} from '../../config/index';
 import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue';
 import { useRoute } from 'vue-router'
 import { highlightCode } from '../../utils/shiki'
-import { extractHost, isIPv4 } from '../../utils/tools';
+import { isIPv4 } from '../../utils/tools';
 const route = useRoute();
 const loading = ref(false);
 
@@ -68,7 +68,7 @@ curl ${config.DualStackAPI}
 const html = ref('');
 const apiList = config.IPLocationAPIs
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value].url)
+const remoteAPI = computed(() => apiList[currentApiIndex.value]?.url || '')
 const ipAddress = ref('');
 const IPLocation = ref<IPLocationType>({});
 const UserIP = ref('');
@@ -93,7 +93,7 @@ watch(locationError, async (newError) => {
     console.error('Error fetching IP location:', newError);
     if (currentApiIndex.value < apiList.length - 1) {
       const nextIndex = currentApiIndex.value + 1
-      error.value = `${(newError as any).message || '请求失败'}，正在重试 ${apiList[nextIndex].label}...`
+      error.value = `${(newError as any).message || '请求失败'}，正在重试 ${apiList[nextIndex]?.label || ''}...`
       currentApiIndex.value = nextIndex
       await nextTick()
       executeLocation()
@@ -163,7 +163,7 @@ onMounted(async () => {
     </div>
     <div class="location">
       <div class="ip-info" style="height: 40px;">
-        <b>IP</b>&nbsp<p>{{ ipAddress }}</p>
+        <b>IP</b>&nbsp;<span>{{ ipAddress }}</span>
       </div>
       <div v-if="IPLocation" class="result-section">
           <table class="result-table">
@@ -189,7 +189,7 @@ onMounted(async () => {
               <tr v-if="IPLocation.geocn && (IPLocation.geocn.administrative_area || IPLocation.geocn.city || IPLocation.geocn.district)">
                 <td class="table-label">GeoCN(仅中国大陆)</td>
                 <td class="table-value">{{ IPLocation.geocn?.administrative_area }}&nbsp;{{ IPLocation.geocn?.city }}&nbsp;{{ IPLocation.geocn?.district }}</td>
-                <td class="table-value">{{ IPLocation.geocn?.isp }}&nbsp{{IPLocation.geocn?.type}}</td>
+                <td class="table-value">{{ IPLocation.geocn?.isp }}&nbsp;{{IPLocation.geocn?.type}}</td>
               </tr>
               <tr v-if="IPLocation.maxmind_city && IPLocation.maxmind_asn && (IPLocation.maxmind_city.country || IPLocation.maxmind_city.city)">
                 <td class="table-label">Maxmind GEOLite2 City</td>
@@ -221,7 +221,7 @@ onMounted(async () => {
       境外及港澳台地址: Maxmind GEOLite2 City ≈ DB-IP > BiliBili Live >  > IP2Region > 纯真社区库<br>
       
       手机默认开启 IPv6，宽带开启 IPv6 请自行搜索<br>
-      访客IP: {{UserIP}}，<p v-if="isIPv4(UserIP)">您的网络IPv4优先</p><p v-else-if="isIPv6(UserIP)">您的网络IPv6优先</p>
+      访客IP: {{UserIP}}，<span v-if="isIPv4(UserIP)">您的网络IPv4优先</span><span v-else-if="isIPv6(UserIP)">您的网络IPv6优先</span>
     </blockquote>
 
     <div v-html="html"></div>

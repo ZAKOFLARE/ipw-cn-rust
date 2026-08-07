@@ -37,7 +37,7 @@ type TCPingStats struct {
 // resolveHost 将主机名解析为指定协议版本的 IP 地址
 // version 参数支持 "v4"（IPv4）和 "v6"（IPv6）
 // 如果 host 已经是 IP 地址（可带 []），直接返回，跳过 DNS 解析
-func resolveHost(host string, version string) (string, error) {
+func ResolveHost(host string, version string) (string, error) {
 	cleanHost := strings.Trim(host, "[]")
 	if ip := net.ParseIP(cleanHost); ip != nil {
 		if version == "v4" && ip.To4() != nil {
@@ -93,7 +93,7 @@ func resolveHost(host string, version string) (string, error) {
 //
 // 返回 TCPingResult 包含连接结果和响应时间
 func TCPing(host string, port string, version string, timeout time.Duration) (*TCPingResult, error) {
-	ip, err := resolveHost(host, version)
+	ip, err := ResolveHost(host, version)
 	if err != nil {
 		return nil, err
 	}
@@ -141,17 +141,17 @@ func TCPing(host string, port string, version string, timeout time.Duration) (*T
 //
 // 返回 TCPingStats 包含统计信息
 func TCPingRun(host string, port string, count int, version string, timeout time.Duration, interval time.Duration) (*TCPingStats, error) {
-	ip, err := resolveHost(host, version)
+	ip, err := ResolveHost(host, version)
 	if err != nil {
 		return &TCPingStats{
-			IP:      "Error: " + err.Error(),
-			Port:    port,
-			Sent:    count,
-			Success: 0,
-			Results: nil,
-			MinRTT:  -1,
-			MaxRTT:  -1,
-			AvgRTT:  -1,
+			IP:       "Error: " + err.Error(),
+			Port:     port,
+			Sent:     count,
+			Success:  0,
+			Results:  nil,
+			MinRTT:   -1,
+			MaxRTT:   -1,
+			AvgRTT:   -1,
 			LossRate: 100,
 		}, nil
 	}

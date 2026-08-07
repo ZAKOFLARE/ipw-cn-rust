@@ -18,20 +18,24 @@ const config = {
     apiBaseUrls: [
         {
             label: "中国 江苏 移动",
-            url: "https://cn-jiangsu.api-ipw.wsmdn.top/"
+            id: "cn-jiangsu",
+            url: "http://localhost:8091/"
         },
         {
             label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
+            id: "cn-shenzhen",
             url: "https://cn-shenzhen.api-ipw.wsmdn.top/"
         }
     ],
     IPLocationAPIs: [
         {
             label: "中国 江苏 移动",
+            id: "cn-jiangsu",
             url: "https://cn-jiangsu.api-ipw.wsmdn.top/"
         },
         {
             label: "中国 四川 沙渠 电信[ZFC]",
+            id: "cn2-sichuan",
             url: "https://cn2-sichuan.api-ipw.wsmdn.top/"
         }
     ],
@@ -41,34 +45,74 @@ const config = {
         DualStack: [
             {
                 label: "中国 江苏 移动",
+                id: "cn-jiangsu",
                 url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
+                id: "cn-shenzhen",
                 url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
             },
         ],
         IPv4: [
             {
                 label: "中国 广东 广州 腾讯云",
+                id: "cn-guangzhou",
                 url :"https://cn-guangzhou.api-ipw.wsmdn.top/",
             },
             {
                 label: "新加坡 腾讯云",
+                id: "sg-1",
                 url :"https://sg-1.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
+                id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
             },
         ],
         IPv6: [
             {
                 label: "中国 四川 沙渠 电信[ZFC]",
+                id: "cn2-sichuan",
                 url:"https://cn2-sichuan.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
+                id: "lntl-cn-hk-kowloon",
+                url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
+            }
+        ]
+    },
+    UDPing:{
+        DualStack: [
+            {
+                label: "中国 江苏 移动",
+                id: "cn-jiangsu",
+                url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
+            },
+            {
+                label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
+                id: "cn-shenzhen",
+                url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
+            },
+        ],
+        IPv4: [
+            {
+                label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
+                id: "cn-xian",
+                url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
+            },
+        ],
+        IPv6: [
+            {
+                label: "中国 四川 沙渠 电信[ZFC]",
+                id: "cn2-sichuan",
+                url:"https://cn2-sichuan.api-ipw.wsmdn.top/",
+            },
+            {
+                label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
+                id: "lntl-cn-hk-kowloon",
                 url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
             }
         ]
@@ -77,34 +121,41 @@ const config = {
         DualStack: [
             {
                 label: "中国 江苏 移动",
-                url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
+                id: "cn-jiangsu",
+                url :"http://localhost:8091/",
             },
             {
                 label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
+                id: "cn-shenzhen",
                 url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
             },
         ],
         IPv4: [
             {
                 label: "中国 广东 广州 腾讯云",
+                id: "cn-guangzhou",
                 url :"https://cn-guangzhou.api-ipw.wsmdn.top/",
             },
             {
                 label: "新加坡 腾讯云",
+                id: "sg-1",
                 url :"https://sg-1.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
+                id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
             },
         ],
         IPv6: [
             {
                 label: "中国 四川 沙渠 电信[ZFC]",
+                id: "cn2-sichuan",
                 url:"https://cn2-sichuan.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
+                id: "lntl-cn-hk-kowloon",
                 url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
             }
         ]
@@ -112,30 +163,37 @@ const config = {
     NSLookup:[
         {
             label: "中国 江苏 移动",
+            id: "cn-jiangsu",
             url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
         },
         {
             label: "中国 广州 腾讯云",
+            id: "cn-guangzhou",
             url :"https://cn-guangzhou.api-ipw.wsmdn.top/",
         },
         {
             label: "新加坡 腾讯云",
+            id: "sg-1",
             url :"https://sg-1.api-ipw.wsmdn.top/",
         },
         {
             label: "中国 四川 沙渠 电信[ZFC]",
+            id: "cn2-sichuan",
             url:"https://cn2-sichuan.api-ipw.wsmdn.top/",
         },
         {
             label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
+            id: "cn-xian",
             url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
         },
         {
             label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
+            id: "lntl-cn-hk-kowloon",
             url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
         },
         {
             label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
+            id: "cn-shenzhen",
             url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
         }
     ]

@@ -5,7 +5,7 @@ import {config} from '../../config/index';
 import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue';
 import { useRoute } from 'vue-router'
 import { highlightCode } from '../../utils/shiki'
-import { extractHost, isIPv4 } from '../../utils/tools';
+import { isIPv4 } from '../../utils/tools';
 const route = useRoute();
 const loading = ref(false);
 
@@ -44,7 +44,7 @@ curl ${config.DualStackAPI}
 const html = ref('');
 const apiList = config.IPLocationAPIs
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value].url)
+const remoteAPI = computed(() => apiList[currentApiIndex.value]!.url)
 const ipAddress = ref('');
 const IPLocation = ref<IPLocationType>({});
 const UserIP = ref('');
@@ -166,7 +166,7 @@ onMounted(async () => {
               <tr v-if="IPLocation.dbip_city && (IPLocation.dbip_city.administrative_area || IPLocation.dbip_city.city)">
                 <td class="table-label">DB-IP City</td>
                 <td class="table-value">{{ IPLocation.dbip_city?.country }}&nbsp;{{ IPLocation.dbip_city?.administrative_area }}&nbsp;{{ IPLocation.dbip_city?.city }}</td>
-                <td class="table-value">--</td>
+                <td class="table-value">{{IPLocation.dbip_asn?.org || '--'}}</td>
               </tr>
             </tbody>
           </table>

@@ -24,10 +24,7 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        'dayjs',
-        'dayjs/plugin/*.js',
         'is-ip',
-        'lodash-unified',
         'shiki',
       ]
     },
@@ -104,6 +101,7 @@ nitro: {
         ],
         
         'style-src': ["'self'", 'https:', "'unsafe-inline'"],
+        'img-src': ["'self'", 'https://s0.wp.com', 'data:', 'https:'],
         'font-src': ["'self'", 'https:', 'data:'],
       }
     }

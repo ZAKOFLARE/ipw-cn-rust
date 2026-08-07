@@ -62,7 +62,7 @@ useHead({
 
 <template>
   
-  <el-drawer v-model="drawer" direction="ltr" style="height: 100%;" size="50%">
+  <el-drawer v-if="isNarrow" v-model="drawer" direction="ltr" style="height: 100%;" size="50%">
       <router-link to="/ipv6webcheck" style="font-size: 1em;">
         <p style="display: inline-block; margin-left: 10px">IPv6 网站检测</p>
       </router-link>
@@ -79,6 +79,8 @@ useHead({
       <a href="/ipv6speedtest"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv6 网站测速</p></a>
       <a href="/speedtest"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv4 网站测速</p></a>
       <a href="/tcping"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv4 TCPing</p></a>
+      <a href="/screenshot"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">网站截图</p></a>
+      <a href="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">RDAP Whois查询</p></a>
   </el-drawer>
   <el-menu
       mode="horizontal"
@@ -88,15 +90,8 @@ useHead({
     <el-menu-item index="0">
       <el-icon v-if="isNarrow" @click="drawer = !drawer"><Expand /></el-icon>
       <router-link to="/">
-        <img
-          src="/favicon.svg"
-          alt="IPW logo"
-          width="48"
-          height="48"
-          loading="eager"
-          decoding="async"
-        />
-        <h2 style="display: inline-block; margin-left: 10px">柠檬味ipw.cn</h2>
+        <el-image src="/favicon.svg" style="margin-top: 20px;" /> 
+        <h2 style="display: inline-block; margin-left: 10px" v-if="!isNarrow">柠檬味ipw.cn</h2>
       </router-link>
     </el-menu-item>
     
@@ -137,7 +132,19 @@ useHead({
         <router-link to="/tcping"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv4 TCPing测试</p></router-link>
       </el-menu-item>
     </el-sub-menu>
-    <el-menu-item index="9">
+    <el-sub-menu index="8" v-if="!isNarrow">
+      <template #title>其他工具</template>
+      <el-menu-item index="8-0">
+        <router-link to="/screenshot"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">网站截图</p></router-link>
+      </el-menu-item>
+      <el-menu-item index="8-1">
+        <router-link to="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">RDAP Whois查询</p></router-link>
+      </el-menu-item>
+    </el-sub-menu>
+    <el-menu-item index="9" v-if="!isNarrow">
+      <router-link to="/doc" style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">文档</p></router-link>
+    </el-menu-item>
+    <el-menu-item index="10">
       <ClientOnly>
       <el-icon @click="toggleDark()" v-if="isDark" style="cursor: pointer;"><Moon style="height: 20px; width: 20px;"/></el-icon>
       <el-icon @click="toggleDark()" v-else style="cursor: pointer;"><Sunny style="height: 20px; width: 20px;"/></el-icon>
@@ -186,11 +193,18 @@ useHead({
   padding: 20px;
   border-radius: 10px;
 }
+
 :deep(.el-menu-item a) {
   font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 :deep(.el-menu-item a p) {
   font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 :deep(.el-menu-item a img) {
   width: 50px;
@@ -206,6 +220,27 @@ html.dark {
   --el-color-primary: #3EAF7C;
 }
 
+/* Drawer 内部链接占满一行 */
+.el-drawer__body {
+  overflow-x: hidden;
+}
+.el-drawer__body a {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.el-drawer__body a p {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 防止窄屏设备在 Vue 水合前出现宽屏布局闪烁 */
 html.is-narrow .el-drawer__container {
   display: none !important;
@@ -219,7 +254,44 @@ html.is-narrow .el-menu--horizontal > .el-menu-item[index="3"],
 html.is-narrow .el-menu--horizontal > .el-menu-item[index="4"],
 html.is-narrow .el-menu--horizontal > .el-menu-item[index="5"],
 html.is-narrow .el-menu--horizontal > .el-menu-item[index="6"],
-html.is-narrow .el-menu--horizontal > .el-sub-menu[index="7"] {
+html.is-narrow .el-menu--horizontal > .el-sub-menu[index="7"]
+html.is-narrow .el-menu--horizontal > .el-sub-menu[index="8"]
+html.is-narrow .el-menu--horizontal > .el-sub-menu[index="9"]
+html.is-narrow .el-menu--horizontal > .el-sub-menu[index="10"] {
+  display: none !important;
+}
+.el-menu--horizontal {
+  --el-menu-hover-bg-color: transparent !important;
+  --el-menu-active-color: var(--el-text-color-primary) !important;
+  --el-menu-bg-color: transparent !important;
+}
+
+.el-menu--horizontal > .el-menu-item:nth-child(1) {
+  margin-right: auto;
+}
+
+/* 去除选中强调和下划线 */
+.el-menu--horizontal > .el-menu-item.is-active {
+  color: var(--el-text-color-primary) !important;
+  background-color: transparent !important;
+}
+
+.el-menu--horizontal > .el-menu-item:hover {
+  color: var(--el-text-color-primary) !important;
+  background-color: transparent !important;
+}
+
+/* 去除所有可能的边框和下划线 */
+.el-menu--horizontal::after {
+  display: none !important;
+}
+
+.el-menu--horizontal > .el-menu-item {
+  border-bottom: none !important;
+  transition: none !important;
+}
+
+.el-menu--horizontal > .el-menu-item.is-active::after {
   display: none !important;
 }
 </style>

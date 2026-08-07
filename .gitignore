@@ -14,3 +14,4 @@ lemon-ipw
 .mmdb.tmp
 *.tmp
 *.log
+node_modules/

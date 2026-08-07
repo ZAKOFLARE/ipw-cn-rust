@@ -32,43 +32,43 @@ func initHTTPClients() {
 	setTransport := func(network string) *http.Transport {
 		dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
 		return &http.Transport{
-		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			if ssrf.Enabled() {
-				host, port, err := net.SplitHostPort(addr)
-				if err != nil {
-					return nil, err
-				}
-				if ip := net.ParseIP(host); ip != nil {
-					if ssrf.IsPrivateIP(ip) {
-						slog.Warn("Blocked connection to private IP", "host", host)
-						return nil, fmt.Errorf("request to private/internal address is not allowed")
-					}
-				} else {
-					var dnsResult webtest.DNSResult
-					if network == "tcp4" {
-						dnsResult, err = webtest.ResolveARecord(host)
-					} else {
-						dnsResult, err = webtest.ResolveAAAARecord(host)
-					}
+			DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+				if ssrf.Enabled() {
+					host, port, err := net.SplitHostPort(addr)
 					if err != nil {
 						return nil, err
 					}
-					for _, ipStr := range dnsResult.Record {
-						ip := net.ParseIP(ipStr)
-						if ip != nil && ssrf.IsPrivateIP(ip) {
-							slog.Warn("Blocked connection to private IP", "host", host, "ip", ip)
+					if ip := net.ParseIP(host); ip != nil {
+						if ssrf.IsPrivateIP(ip) {
+							slog.Warn("Blocked connection to private IP", "host", host)
 							return nil, fmt.Errorf("request to private/internal address is not allowed")
 						}
-					}
-					if len(dnsResult.Record) > 0 {
-						addr = net.JoinHostPort(dnsResult.Record[0], port)
+					} else {
+						var dnsResult webtest.DNSResult
+						if network == "tcp4" {
+							dnsResult, err = webtest.ResolveARecord(host)
+						} else {
+							dnsResult, err = webtest.ResolveAAAARecord(host)
+						}
+						if err != nil {
+							return nil, err
+						}
+						for _, ipStr := range dnsResult.Record {
+							ip := net.ParseIP(ipStr)
+							if ip != nil && ssrf.IsPrivateIP(ip) {
+								slog.Warn("Blocked connection to private IP", "host", host, "ip", ip)
+								return nil, fmt.Errorf("request to private/internal address is not allowed")
+							}
+						}
+						if len(dnsResult.Record) > 0 {
+							addr = net.JoinHostPort(dnsResult.Record[0], port)
+						}
 					}
 				}
-			}
-			return dialer.DialContext(ctx, network, addr)
-		},
-			TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
-			DisableKeepAlives:  true,
+				return dialer.DialContext(ctx, network, addr)
+			},
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+			DisableKeepAlives: true,
 		}
 	}
 	V6Client = resty.New()
@@ -223,21 +223,25 @@ func (s *Setting) PortString() string {
 // Global variables and structs
 // 全局变量与结构体
 var (
-	PORTS        string
-	GH_PROXY     string
-	LOG_LEVEL    string
-	websiteCache sync.Map
-	SINGLE_STACK string
-	DNS_SERVER   string
-	sslCache     sync.Map
-	pingCache    sync.Map
-	speedCache   sync.Map
-	sfGroup      singleflight.Group
-	V6Client     *resty.Client
-	V4Client     *resty.Client
-	IPDB         string
-	CORS         string
+	PORTS          string
+	GH_PROXY       string
+	LOG_LEVEL      string
+	websiteCache   sync.Map
+	SINGLE_STACK   string
+	DNS_SERVER     string
+	sslCache       sync.Map
+	pingCache      sync.Map
+	udpCache       sync.Map
+	speedCache     sync.Map
+	whoisCache     sync.Map
+	asnWhoisCache  sync.Map
+	sfGroup        singleflight.Group
+	V6Client       *resty.Client
+	V4Client       *resty.Client
+	IPDB           string
+	CORS           string
 	ACCEPT_DOMAINS []string
+	ACCESS_TOKEN   string
 )
 
 type websiteCacheEntry struct {
@@ -255,8 +259,23 @@ type pingCacheEntry struct {
 	timestamp time.Time
 }
 
+type udpCacheEntry struct {
+	result    *UDPingResult
+	timestamp time.Time
+}
+
 type speedCacheEntry struct {
 	result    *WebsiteSpeedTestResult
+	timestamp time.Time
+}
+
+type whoisCacheEntry struct {
+	result    *webtest.WhoisResult
+	timestamp time.Time
+}
+
+type asnWhoisCacheEntry struct {
+	result    *webtest.ASNWhoisResult
 	timestamp time.Time
 }
 
@@ -303,6 +322,10 @@ type SSLCheckResult struct {
 type TCPingResult struct {
 	IPv4 *webtest.TCPingStats `json:"ipv4"`
 	IPv6 *webtest.TCPingStats `json:"ipv6"`
+}
+type UDPingResult struct {
+	IPv4 *webtest.UDPingStats `json:"ipv4"`
+	IPv6 *webtest.UDPingStats `json:"ipv6"`
 }
 type WebsiteSpeedTestResult struct {
 	Version          string  `json:"version"`
@@ -700,7 +723,7 @@ func websiteSpeedTestHandler(c *gin.Context) {
 	// 检查缓存
 	if cached, ok := speedCache.Load(cacheKey); ok {
 		entry := cached.(speedCacheEntry)
-		if time.Since(entry.timestamp) < 1*time.Minute {
+		if time.Since(entry.timestamp) < 5*time.Minute {
 			c.JSON(200, entry.result)
 			return
 		}
@@ -859,6 +882,116 @@ func locateUserIP(c *gin.Context) {
 	slog.Debug("Locating user IP", "ip", ip)
 	c.JSON(http.StatusOK, ipdb.SearchIP(ip))
 }
+
+func asnLookupHandler(c *gin.Context) {
+	ip := c.Param("ip")
+	if ip == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "IP parameter is required",
+		})
+		return
+	}
+
+	result := ipdb.SearchIP(ip, "maxmind_asn", "dbip_asn")
+
+	asnResult := map[string]interface{}{
+		"ip": ip,
+	}
+
+	if maxmindASN, ok := result["maxmind_asn"].(*ipdb.MMDBASNResult); ok {
+		asnResult["geolite2_asn"] = map[string]string{
+			"asn": maxmindASN.ASN,
+			"org": maxmindASN.Org,
+		}
+	} else if errStr, ok := result["maxmind_asn"].(string); ok {
+		asnResult["geolite2_asn"] = map[string]string{
+			"error": errStr,
+		}
+	}
+
+	if dbipASN, ok := result["dbip_asn"].(*ipdb.MMDBASNResult); ok {
+		asnResult["dbip_asn"] = map[string]string{
+			"asn": dbipASN.ASN,
+			"org": dbipASN.Org,
+		}
+	} else if errStr, ok := result["dbip_asn"].(string); ok {
+		asnResult["dbip_asn"] = map[string]string{
+			"error": errStr,
+		}
+	}
+
+	// 使用 WHOIS 对 ASN 进行进一步解析
+	if maxmindASN, ok := result["maxmind_asn"].(*ipdb.MMDBASNResult); ok {
+		asnKey := "AS" + maxmindASN.ASN
+		if cached, ok := asnWhoisCache.Load(asnKey); ok {
+			entry := cached.(asnWhoisCacheEntry)
+			if time.Since(entry.timestamp) < 5*time.Minute {
+				asnResult["whois"] = entry.result
+			} else {
+				asnWhoisCache.Delete(asnKey)
+			}
+		} else {
+			whoisData, err := webtest.QueryASNWhois(maxmindASN.ASN)
+			if err == nil {
+				asnResult["whois"] = whoisData
+				asnWhoisCache.Store(asnKey, asnWhoisCacheEntry{result: whoisData, timestamp: time.Now()})
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, asnResult)
+}
+
+func whoisHandler(c *gin.Context) {
+	domain := c.Param("domain")
+	if domain == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Domain parameter is required",
+		})
+		return
+	}
+
+	if cached, ok := whoisCache.Load(domain); ok {
+		entry := cached.(whoisCacheEntry)
+		if time.Since(entry.timestamp) < 5*time.Minute {
+			c.JSON(200, entry.result)
+			return
+		}
+		whoisCache.Delete(domain)
+	}
+
+	result, err := webtest.QueryWhois(domain)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	whoisCache.Store(domain, whoisCacheEntry{result: result, timestamp: time.Now()})
+	c.JSON(http.StatusOK, result)
+}
+
+func dnssecHandler(c *gin.Context) {
+	domain := c.Param("domain")
+	if domain == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Domain parameter is required",
+		})
+		return
+	}
+
+	result, err := webtest.ResolveDNSSEC(domain)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func dnsQueryHandler(c *gin.Context) {
 
 	domain := c.Param("domain")
@@ -995,7 +1128,7 @@ func pingHandler(c *gin.Context) {
 	cacheKey := fmt.Sprintf("%s:%s:%d", host, port, count)
 	if cached, ok := pingCache.Load(cacheKey); ok {
 		entry := cached.(pingCacheEntry)
-		if time.Since(entry.timestamp) < 1*time.Minute {
+		if time.Since(entry.timestamp) < 5*time.Minute {
 			c.JSON(200, entry.result)
 			return
 		}
@@ -1074,10 +1207,146 @@ func pingHandler(c *gin.Context) {
 	c.JSON(200, rawResult.(*TCPingResult))
 }
 
+func udpingHandler(c *gin.Context) {
+	host := c.Param("ip")
+	port := c.Query("port")
+	if host == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "IP or hostname parameter is required",
+		})
+		return
+	}
+	if port == "" {
+		port = "53"
+	}
+	portNum, err := strconv.Atoi(port)
+	if err != nil || portNum < 1 || portNum > 65535 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid port number",
+		})
+		return
+	}
+
+	count := 4
+	if countStr := c.Query("count"); countStr != "" {
+		n, err := strconv.Atoi(countStr)
+		if err != nil || n < 1 || n > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "count must be an integer between 1 and 20",
+			})
+			return
+		}
+		count = n
+	}
+
+	timeout := 3 * time.Second
+	if timeoutStr := c.Query("timeout"); timeoutStr != "" {
+		d, err := time.ParseDuration(timeoutStr)
+		if err != nil || d <= 0 || d > 30*time.Second {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "timeout must be a duration between 1ms and 30s (e.g. 2s)",
+			})
+			return
+		}
+		timeout = d
+	}
+
+	cacheKey := fmt.Sprintf("udp:%s:%s:%d:%s", host, port, count, timeout.String())
+	if cached, ok := udpCache.Load(cacheKey); ok {
+		entry := cached.(udpCacheEntry)
+		if time.Since(entry.timestamp) < 5*time.Minute {
+			c.JSON(200, entry.result)
+			return
+		}
+		udpCache.Delete(cacheKey)
+	}
+
+	rawResult, _, _ := sfGroup.Do(cacheKey, func() (interface{}, error) {
+		result := &UDPingResult{}
+
+		switch SINGLE_STACK {
+		case "ipv4":
+			ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
+			if errV4 != nil {
+				ipv4 = &webtest.UDPingStats{
+					IP: "Error: " + errV4.Error(),
+				}
+			}
+			result.IPv4 = ipv4
+			result.IPv6 = &webtest.UDPingStats{
+				IP: "Skipped due to SINGLE_STACK=ipv4",
+			}
+		case "ipv6":
+			ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
+			if errV6 != nil {
+				ipv6 = &webtest.UDPingStats{
+					IP: "Error: " + errV6.Error(),
+				}
+			}
+			result.IPv6 = ipv6
+			result.IPv4 = &webtest.UDPingStats{
+				IP: "Skipped due to SINGLE_STACK=ipv6",
+			}
+		default:
+			var wg sync.WaitGroup
+			wg.Add(2)
+
+			go func() {
+				defer wg.Done()
+				ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
+				if errV6 != nil {
+					ipv6 = &webtest.UDPingStats{
+						IP: "Error: " + errV6.Error(),
+					}
+				}
+				result.IPv6 = ipv6
+			}()
+
+			go func() {
+				defer wg.Done()
+				ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
+				if errV4 != nil {
+					ipv4 = &webtest.UDPingStats{
+						IP: "Error: " + errV4.Error(),
+					}
+				}
+				result.IPv4 = ipv4
+			}()
+
+			wg.Wait()
+		}
+
+		udpCache.Store(cacheKey, udpCacheEntry{result: result, timestamp: time.Now()})
+
+		ipv4Failed := result.IPv4 != nil && strings.HasPrefix(result.IPv4.IP, "Error:")
+		ipv6Failed := result.IPv6 != nil && strings.HasPrefix(result.IPv6.IP, "Error:")
+		if ipv4Failed && ipv6Failed {
+			go func() {
+				time.Sleep(30 * time.Second)
+				udpCache.Delete(cacheKey)
+			}()
+		}
+
+		return result, nil
+	})
+
+	c.JSON(200, rawResult.(*UDPingResult))
+}
+
 func healchCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
+}
+func tokenCheck() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		if token != "Bearer "+ACCESS_TOKEN {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		} else {
+			c.Next()
+		}
+	}
 }
 func readConfig() {
 	PORTS = os.Getenv("PORTS")
@@ -1089,6 +1358,7 @@ func readConfig() {
 	DNS_SERVER = os.Getenv("DNS_SERVER")
 	IPDB = os.Getenv("IPDB")
 	CORS = os.Getenv("CORS")
+	ACCESS_TOKEN = os.Getenv("ACCESS_TOKEN")
 	ssrf.SetEnabled(os.Getenv("BLOCK_PRIVATE_IPS") != "false" && os.Getenv("BLOCK_PRIVATE_IPS") != "0")
 
 	// SINGLE_STACK is intentionally excluded: empty string is a valid value (dual-stack).
@@ -1123,6 +1393,9 @@ func readConfig() {
 	if CORS != "" {
 		ACCEPT_DOMAINS = strings.Split(CORS, ",")
 	}
+	if ACCESS_TOKEN == "" {
+		ACCESS_TOKEN = viper.GetString("access_token")
+	}
 	slog.Info("SSRF protection initialized", "blockPrivateIPs", ssrf.Enabled())
 }
 
@@ -1133,28 +1406,41 @@ func main() {
 	if IPDB != "false" {
 		ipdb.Init(GH_PROXY)
 	}
-	slog.Info("Starting server", "port", PORTS, "gh_proxy", GH_PROXY, "single_stack", SINGLE_STACK, "dns_server", DNS_SERVER,"CORS_ACCEPT",ACCEPT_DOMAINS)
+	slog.Info("Starting server", "port", PORTS, "gh_proxy", GH_PROXY, "single_stack", SINGLE_STACK, "dns_server", DNS_SERVER, "CORS_ACCEPT", ACCEPT_DOMAINS)
 
 	r := gin.Default()
 	corsConfig := cors.DefaultConfig()
-	if len(ACCEPT_DOMAINS) > 0{
+
+	if len(ACCEPT_DOMAINS) > 0 {
 		corsConfig.AllowOrigins = ACCEPT_DOMAINS
-	}else{
+	} else {
 		corsConfig.AllowAllOrigins = true
 	}
 	r.Use(cors.New(corsConfig))
-	r.GET("/v1/detail/*url", checkWebsiteHandler)
-	r.GET("/v1/ssl/*url", sslCheckHandler)
+	v1 := r.Group("/v1")
+	v1.Use(cors.New(corsConfig)) // Apply CORS middleware to the v1 group
+	if ACCESS_TOKEN != "" {
+		v1.Use(tokenCheck()) // Apply token check middleware to the v1 group
+	}
+	{
+		v1.GET("/detail/*url", checkWebsiteHandler)
+		v1.GET("/ssl/*url", sslCheckHandler)
+		v1.GET("/tcping/:ip", pingHandler)
+		v1.GET("/udping/:ip", udpingHandler)
+		v1.GET("/dns/:type/*domain", dnsQueryHandler)
+		v1.GET("/dnssec/:domain", dnssecHandler)
+		v1.GET("/whois/:domain", whoisHandler)
+		v1.GET("/speed/:version/*url", websiteSpeedTestHandler)
 
-	r.GET("/v1/tcping/:ip", pingHandler)
-	r.GET("/v1/dns/:type/*domain", dnsQueryHandler)
-	r.GET("/v1/speed/:version/*url", websiteSpeedTestHandler)
+		if IPDB != "false" {
+			v1.GET("/location/:ip", locateIP)
+			v1.GET("/location", locateUserIP)
+			v1.GET("/asn/:ip", asnLookupHandler)
+		}
+	}
 
 	r.GET("/", healchCheck)
-	if IPDB != "false" {
-		r.GET("/v1/location/:ip", locateIP)
-		r.GET("/v1/location", locateUserIP)
-	}
+
 	if err := r.Run(":" + PORTS); err != nil {
 		slog.Error("Server failed to start", "error", err)
 	}
