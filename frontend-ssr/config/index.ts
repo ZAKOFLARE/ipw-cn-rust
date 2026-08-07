@@ -19,7 +19,7 @@ const config = {
         {
             label: "中国 江苏 移动",
             id: "cn-jiangsu",
-            url: "http://localhost:8091/"
+            url: "https://cn-jiangsu.api-ipw.wsmdn.top/"
         },
         {
             label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
@@ -122,7 +122,7 @@ const config = {
             {
                 label: "中国 江苏 移动",
                 id: "cn-jiangsu",
-                url :"http://localhost:8091/",
+                url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
             },
             {
                 label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
