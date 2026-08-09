@@ -122,12 +122,12 @@ onMounted(async () => {
       <b>IPv6</b>&nbsp<p v-if="yourIPv6">{{ yourIPv6 }}</p><RouterLink :to="`/location?ip=${yourIPv6}`" target="_blank" v-if="yourIPv6">&nbsp查询归属地</RouterLink><RouterLink v-else to="/doc/user/enable_ipv6" target="_blank">没有IPv6地址,查看如何开启IPv6</RouterLink>
     </div>
     <div style="font-size: 1.5em;">
-      <h3 v-if="ipAddress && isIPv6(ipAddress)"><el-icon><CircleCheckFilled style="color: lightgreen;"/></el-icon>您的网络IPv6优先</h3>
-      <h3 v-else-if="ipAddress && isIPv4(ipAddress)"><el-icon><CircleCloseFilled style="color: red;"/></el-icon>您的网络IPv4优先</h3>
+      <h3 v-if="(ipAddress && isIPv6(ipAddress)) || isIPv6(yourIPv6)"><el-icon><CircleCheckFilled style="color: lightgreen;"/></el-icon>您的网络IPv6优先</h3>
+      <h3 v-else-if="(ipAddress && isIPv4(ipAddress)) || isIPv6(yourIPv6)"><el-icon><CircleCloseFilled style="color: red;"/></el-icon>您的网络IPv4优先</h3>
       <h3 v-else><el-icon><CircleCloseFilled /></el-icon>查询中，请稍后</h3>
     </div>
      <blockquote>
-      手机默认开启 IPv6，宽带开启 IPv6 请自行搜索 (我们没有文档)
+      手机默认开启 IPv6，宽带开启 IPv6 请参阅<a href="/doc/user/enable_ipv6" target="_blank">文档</a>
     </blockquote>
 
     <div v-if="highlightedCode" v-html="highlightedCode" class="code-block"></div>

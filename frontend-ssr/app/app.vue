@@ -302,4 +302,7 @@ html.is-narrow .el-menu--horizontal > .el-sub-menu[index="10"] {
 .el-menu--horizontal > .el-menu-item.is-active::after {
   display: none !important;
 }
+/* 覆盖选中、悬停和聚焦状态的高亮样式 */
+
+
 </style>

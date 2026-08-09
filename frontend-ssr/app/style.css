@@ -4,6 +4,11 @@ body{
     margin: 0 	auto;
 
 }
+/* 在样式开头添加 */
+p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
 .title{
     display: flex;
     flex-direction: column;
@@ -49,7 +54,10 @@ h2{
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    word-break: break-all;
+    hyphens: none; /* 防止自动添加连字符 */
+    margin-top: 0.5em;
 }
 .ip-info{
     display: flex;
@@ -165,9 +173,8 @@ footer {
         font-size: 0.9em;
     }
     .one-line {
-        flex-wrap: wrap;
-        word-break: break-all;
-        hyphens: none; /* 防止自动添加连字符 */
+        margin-top: 0;
+        margin-bottom: 0;
     }
     .one-line p{
         font-size:1em
