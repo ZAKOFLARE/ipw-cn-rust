@@ -80,7 +80,9 @@ useHead({
       <a href="/speedtest"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv4 网站测速</p></a>
       <a href="/tcping"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">IPv4 TCPing</p></a>
       <a href="/screenshot"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">网站截图</p></a>
-      <a href="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">RDAP Whois查询</p></a>
+      <a href="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">Whois查询</p></a>
+      <a href="/asn"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">ASN查询</p></a>
+      <a href="/dnssec"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">DNSSEC验证</p></a>
   </el-drawer>
   <el-menu
       mode="horizontal"
@@ -138,7 +140,13 @@ useHead({
         <router-link to="/screenshot"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">网站截图</p></router-link>
       </el-menu-item>
       <el-menu-item index="8-1">
-        <router-link to="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">RDAP Whois查询</p></router-link>
+        <router-link to="/whois"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">Whois查询</p></router-link>
+      </el-menu-item>
+      <el-menu-item index="8-3">
+        <router-link to="/asn"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">ASN查询</p></router-link>
+      </el-menu-item>
+      <el-menu-item index="8-4">
+        <router-link to="/dnssec"  style="font-size: 1em;"><p style="display: inline-block; margin-left: 10px">DNSSEC验证</p></router-link>
       </el-menu-item>
     </el-sub-menu>
     <el-menu-item index="9" v-if="!isNarrow">

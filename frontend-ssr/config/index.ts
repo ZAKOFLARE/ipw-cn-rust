@@ -70,39 +70,11 @@ const config = {
                 id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
             },
-        ],
-        IPv6: [
             {
-                label: "中国 四川 沙渠 电信[ZFC]",
-                id: "cn2-sichuan",
-                url:"https://cn2-sichuan.api-ipw.wsmdn.top/",
-            },
-            {
-                label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
-                id: "lntl-cn-hk-kowloon",
-                url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
+                label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
+                id: "us-la",
+                url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
             }
-        ]
-    },
-    UDPing:{
-        DualStack: [
-            {
-                label: "中国 江苏 移动",
-                id: "cn-jiangsu",
-                url :"https://cn-jiangsu.api-ipw.wsmdn.top/",
-            },
-            {
-                label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
-                id: "cn-shenzhen",
-                url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
-            },
-        ],
-        IPv4: [
-            {
-                label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
-                id: "cn-xian",
-                url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
-            },
         ],
         IPv6: [
             {
@@ -146,6 +118,11 @@ const config = {
                 id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
             },
+            {
+                label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
+                id: "us-la",
+                url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
+            }
         ],
         IPv6: [
             {
@@ -195,6 +172,11 @@ const config = {
             label: "中国 广东 深圳 龙岗 坪地街道 中国移动",
             id: "cn-shenzhen",
             url :"https://cn-shenzhen.api-ipw.wsmdn.top/",
+        },
+        {
+            label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
+            id: "us-la",
+            url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
         }
     ]
 }

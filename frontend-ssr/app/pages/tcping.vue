@@ -58,6 +58,7 @@ interface TCPingResponse {
 }
 
 interface ServerConfig {
+  id: string
   label: string
   url: string
 }
@@ -81,7 +82,7 @@ const allServers = [
 ];
 
 const tcpingFetches = allServers.map((server) => {
-  const url = computed(() => server.url + 'v1/tcping/' + extractHost(tmpDomain.value) + '?port=' + port.value);
+  const url = computed(() => "/middleware/" + server.id + "/tcping/" + extractHost(tmpDomain.value) + "?port=" + port.value);
   const { data, error: fetchError, execute } = useFetch<TCPingResponse>(url, {
     immediate: false,
     watch: false,

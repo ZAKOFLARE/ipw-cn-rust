@@ -1,9 +1,12 @@
 package webtest
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/likexian/whois"
@@ -46,10 +49,47 @@ type WhoisDates struct {
 	LastChanged  string `json:"lastChanged"`
 }
 
+// tldWhoisServers 内置常见 TLD 与对应 WHOIS 服务器的映射
+// 当 IANA 查询失败时作为 fallback 使用
+var tldWhoisServers = map[string]string{
+	"com":   "whois.verisign-grs.com",
+	"net":   "whois.verisign-grs.com",
+	"org":   "whois.pir.org",
+	"info":  "whois.afilias.net",
+	"biz":   "whois.neulevel.biz",
+	"name":  "whois.nic.name",
+	"pro":   "whois.registrypro.pro",
+	"io":    "whois.nic.io",
+	"co":    "whois.nic.co",
+	"me":    "whois.nic.me",
+	"cc":    "whois.nic.cc",
+	"tv":    "whois.nic.tv",
+	"top":   "whois.nic.top",
+	"xyz":   "whois.nic.xyz",
+	"club":  "whois.nic.club",
+	"online":"whois.nic.online",
+	"site":  "whois.nic.site",
+	"store": "whois.nic.store",
+	"shop":  "whois.nic.shop",
+	"app":   "whois.nic.google",
+	"dev":   "whois.nic.google",
+	"tech":  "whois.nic.tech",
+	"cn":    "whois.cnnic.cn",
+	"wang":  "whois.gtld.knet.cn",
+	"ren":   "whois.renren.us",
+}
+
+// happyEyeballsV6Delay Happy Eyeballs 的 v6 启动延迟
+// RFC 6555 推荐 250ms，这里缩短为 150ms，在 v6 不可达的环境下更快切到 v4
+const happyEyeballsV6Delay = 150 * time.Millisecond
+
+// whoisConnectTimeout 单 IP 连接 + 读写超时上限
+const whoisConnectTimeout = 10 * time.Second
+
 // QueryWhois 执行 WHOIS 查询并解析结构化数据
 // 使用 likexian/whois 库查询原始响应，再用 whois-parser 解析为结构化数据
-// 对于 DNS 负载均衡且部分 IP 不可达的 WHOIS 服务器（如 whois.nic.top），
-// 首次失败后会解析所有 IP 逐个尝试连接
+// 首次失败后 fallback：内置 TLD 映射 → IANA 查询服务器地址 →
+// 用 ResolveA/AAAA(自定义DNS) 解析IP → Happy Eyeballs 双栈竞争拨号
 func QueryWhois(domain string) (*WhoisResult, error) {
 	raw, err := whois.Whois(domain)
 	if err != nil {
@@ -68,36 +108,166 @@ func errString(err error) string {
 	return err.Error()
 }
 
-// whoisRetryWithFallback 在 whois.Whois 失败后，手动解析 WHOIS 服务器所有 IP 逐个尝试
-func whoisRetryWithFallback(domain string, firstErr error) (string, error) {
-	// 先查 IANA 获取该域名后缀对应的 WHOIS 服务器
-	ianaResult, err := whois.Whois("." + getExtension(domain))
+// resolveWhoisServer 解析域名对应的 WHOIS 服务器地址
+// 优先使用内置映射，失败时再查询 IANA WHOIS
+func resolveWhoisServer(ext string) (string, error) {
+	// 1. 优先使用内置 TLD 映射
+	if server, ok := tldWhoisServers[ext]; ok && server != "" {
+		return server, nil
+	}
+
+	// 2. 内置映射中没有，尝试查 IANA
+	ianaResult, err := whois.Whois("." + ext)
 	if err != nil {
-		return "", firstErr
+		return "", err
 	}
 
 	server := extractWhoisServer(ianaResult)
 	if server == "" {
-		return "", firstErr
+		return "", fmt.Errorf("no whois server found in IANA response for .%s", ext)
+	}
+	return server, nil
+}
+
+// resolveWhoisServerIPs 使用 webtest/dns 的统一解析接口
+// 并行查询 A + AAAA（走自定义 DNS 服务器，不受系统 resolver 策略影响）
+func resolveWhoisServerIPs(server string) (v4IPs, v6IPs []string, err error) {
+	var (
+		aResult   DNSResult
+		aaaaResult DNSResult
+		wg        sync.WaitGroup
+		aErr      error
+		aaaaErr   error
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		aResult, aErr = ResolveARecord(server)
+	}()
+	go func() {
+		defer wg.Done()
+		aaaaResult, aaaaErr = ResolveAAAARecord(server)
+	}()
+	wg.Wait()
+
+	if aErr != nil && aaaaErr != nil {
+		return nil, nil, fmt.Errorf("both A and AAAA DNS lookup failed for %s: A=%w, AAAA=%w", server, aErr, aaaaErr)
 	}
 
-	// 解析该服务器的所有 IP
-	ips, err := netLookupIP(server)
+	v4IPs = aResult.Record
+	v6IPs = aaaaResult.Record
+
+	if len(v4IPs) == 0 && len(v6IPs) == 0 {
+		return nil, nil, fmt.Errorf("no IPs resolved for %s", server)
+	}
+	return v4IPs, v6IPs, nil
+}
+
+// happyEyeballsWhoisQuery Happy Eyeballs (RFC 6555) 简化版：
+// - 立即并发拨号所有 IPv4 IP
+// - 等待 happyEyeballsV6Delay 后并发拨号所有 IPv6 IP
+// - 取第一个成功完成 WHOIS 查询的结果返回
+// - 其他仍在运行的 goroutine 通过 context 取消尽快退出
+func happyEyeballsWhoisQuery(domain string, v4IPs, v6IPs []string, port string) (string, error) {
+	if len(v4IPs) == 0 && len(v6IPs) == 0 {
+		return "", fmt.Errorf("no IPs available for WHOIS query")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type outcome struct {
+		raw string
+		err error
+	}
+	// 有缓冲：保证每个 goroutine 写入不被阻塞，避免 goroutine 泄漏
+	ch := make(chan outcome, len(v4IPs)+len(v6IPs))
+
+	tryIP := func(ip string) {
+		raw, err := rawWhoisQueryCtx(ctx, domain, ip, port)
+		ch <- outcome{raw: raw, err: err}
+	}
+
+	// 1) 立即启动所有 v4
+	for _, ip := range v4IPs {
+		go tryIP(ip)
+	}
+
+	// 2) 定时器：v6 延迟启动
+	var v6Timer *time.Timer
+	if len(v6IPs) > 0 {
+		v6Timer = time.AfterFunc(happyEyeballsV6Delay, func() {
+			for _, ip := range v6IPs {
+				go tryIP(ip)
+			}
+		})
+	}
+	defer func() {
+		if v6Timer != nil {
+			v6Timer.Stop()
+		}
+	}()
+
+	// 3) 收集结果：取第一个成功；若全失败则返回最后一个错误
+	var lastErr error
+	total := len(v4IPs) + len(v6IPs)
+	received := 0
+
+	// 首先保证 v6 goroutine 都已启动（如果 v6Timer 触发）
+	v6WaitCh := make(chan struct{})
+	if v6Timer != nil {
+		go func() {
+			time.Sleep(happyEyeballsV6Delay + 50*time.Millisecond)
+			close(v6WaitCh)
+		}()
+	} else {
+		close(v6WaitCh)
+	}
+
+	for received < total {
+		select {
+		case r := <-ch:
+			received++
+			if r.err == nil {
+				return r.raw, nil
+			}
+			lastErr = r.err
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-v6WaitCh:
+			// v6 全部启动窗口已过，不再等这个信号
+			v6WaitCh = nil
+		}
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("all WHOIS connection attempts failed")
+	}
+	return "", lastErr
+}
+
+// whoisRetryWithFallback 在 whois.Whois 失败后，手动解析 WHOIS 服务器所有 IP 逐个尝试
+func whoisRetryWithFallback(domain string, firstErr error) (string, error) {
+	ext := getExtension(domain)
+
+	// 解析 WHOIS 服务器地址（内置映射 + IANA fallback）
+	server, err := resolveWhoisServer(ext)
 	if err != nil {
 		return "", firstErr
 	}
 
-	// 逐个 IP 尝试连接
-	lastErr := firstErr
-	for _, ip := range ips {
-		raw, err := rawWhoisQuery(domain, ip.String(), "43")
-		if err == nil {
-			return raw, nil
-		}
-		lastErr = err
+	// 使用 ResolveA/AAAA（自定义 DNS）并行解析 v4/v6
+	v4IPs, v6IPs, err := resolveWhoisServerIPs(server)
+	if err != nil {
+		return "", firstErr
 	}
 
-	return "", lastErr
+	// Happy Eyeballs 双栈竞争拨号 + 并发多 IP
+	raw, err := happyEyeballsWhoisQuery(domain, v4IPs, v6IPs, "43")
+	if err != nil {
+		return "", err
+	}
+	return raw, nil
 }
 
 // getExtension 提取域名后缀
@@ -129,32 +299,52 @@ func extractWhoisServer(data string) string {
 	return ""
 }
 
-// netLookupIP 解析域名的所有 IP 地址
-func netLookupIP(host string) ([]net.IP, error) {
-	return net.LookupIP(host)
-}
-
-// rawWhoisQuery 直接向指定 IP:port 发送 WHOIS 查询
-func rawWhoisQuery(domain, server, port string) (string, error) {
-	d := &net.Dialer{Timeout: 10 * time.Second}
-	conn, err := d.Dial("tcp", net.JoinHostPort(server, port))
+// rawWhoisQueryCtx 带 context 的 WHOIS 查询
+// context 被取消时，Dial/Read 尽快失败退出（goroutine 不泄漏）
+func rawWhoisQueryCtx(ctx context.Context, domain, server, port string) (string, error) {
+	d := &net.Dialer{Timeout: whoisConnectTimeout}
+	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(server, port))
 	if err != nil {
 		return "", err
 	}
 	defer conn.Close()
 
-	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
-	_, err = conn.Write([]byte(domain + "\r\n"))
-	if err != nil {
-		return "", err
+	// 1. 设置读写 deadline：取 ctx deadline 或默认上限中更早的
+	deadline := time.Now().Add(whoisConnectTimeout + 5*time.Second)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	_ = conn.SetDeadline(deadline)
+
+	// 2. 发送查询
+	if _, err := conn.Write([]byte(domain + "\r\n")); err != nil {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+			return "", err
+		}
 	}
 
+	// 3. 读取响应
 	buf := make([]byte, 65536)
-	n, err := conn.Read(buf)
-	if err != nil && n == 0 {
-		return "", err
+	n, readErr := conn.Read(buf)
+
+	// 有数据就读到了，哪怕 readErr != nil 也先返回数据
+	if n > 0 {
+		return string(buf[:n]), nil
 	}
-	return string(buf[:n]), nil
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+		return "", readErr
+	}
+}
+
+// rawWhoisQuery 直接向指定 IP:port 发送 WHOIS 查询（向后兼容包装）
+func rawWhoisQuery(domain, server, port string) (string, error) {
+	return rawWhoisQueryCtx(context.Background(), domain, server, port)
 }
 
 // parseWhoisResult 用 whois-parser 解析原始响应，转换为前端需要的格式
@@ -291,17 +481,17 @@ type ASNWhoisResult struct {
 
 // asnFieldPatterns 用于从原始 ASN WHOIS 文本中提取字段
 var asnFieldPatterns = map[string]*regexp.Regexp{
-	"asNumber":   regexp.MustCompile(`(?i)^\s*ASNumber\s*[:=]\s*(.+?)\s*$`),
-	"asName":     regexp.MustCompile(`(?i)^\s*ASName\s*[:=]\s*(.+?)\s*$`),
-	"asHandle":   regexp.MustCompile(`(?i)^\s*ASHandle\s*[:=]\s*(.+?)\s*$`),
-	"regDate":    regexp.MustCompile(`(?i)^\s*RegDate\s*[:=]\s*(.+?)\s*$`),
-	"updated":    regexp.MustCompile(`(?i)^\s*Updated\s*[:=]\s*(.+?)\s*$`),
-	"orgName":    regexp.MustCompile(`(?i)^\s*OrgName\s*[:=]\s*(.+?)\s*$`),
-	"orgId":      regexp.MustCompile(`(?i)^\s*OrgId\s*[:=]\s*(.+?)\s*$`),
-	"country":    regexp.MustCompile(`(?i)^\s*Country\s*[:=]\s*([A-Z]{2})\s*$`),
-	"abuseName":  regexp.MustCompile(`(?i)^\s*OrgAbuseName\s*[:=]\s*(.+?)\s*$`),
-	"abuseEmail": regexp.MustCompile(`(?i)^\s*OrgAbuseEmail\s*[:=]\s*(.+?)\s*$`),
-	"abusePhone": regexp.MustCompile(`(?i)^\s*OrgAbusePhone\s*[:=]\s*(.+?)\s*$`),
+	"asNumber":    regexp.MustCompile(`(?i)^\s*ASNumber\s*[:=]\s*(.+?)\s*$`),
+	"asName":      regexp.MustCompile(`(?i)^\s*ASName\s*[:=]\s*(.+?)\s*$`),
+	"asHandle":    regexp.MustCompile(`(?i)^\s*ASHandle\s*[:=]\s*(.+?)\s*$`),
+	"regDate":     regexp.MustCompile(`(?i)^\s*RegDate\s*[:=]\s*(.+?)\s*$`),
+	"updated":     regexp.MustCompile(`(?i)^\s*Updated\s*[:=]\s*(.+?)\s*$`),
+	"orgName":     regexp.MustCompile(`(?i)^\s*OrgName\s*[:=]\s*(.+?)\s*$`),
+	"orgId":       regexp.MustCompile(`(?i)^\s*OrgId\s*[:=]\s*(.+?)\s*$`),
+	"country":     regexp.MustCompile(`(?i)^\s*Country\s*[:=]\s*([A-Z]{2})\s*$`),
+	"abuseName":   regexp.MustCompile(`(?i)^\s*OrgAbuseName\s*[:=]\s*(.+?)\s*$`),
+	"abuseEmail":  regexp.MustCompile(`(?i)^\s*OrgAbuseEmail\s*[:=]\s*(.+?)\s*$`),
+	"abusePhone":  regexp.MustCompile(`(?i)^\s*OrgAbusePhone\s*[:=]\s*(.+?)\s*$`),
 }
 
 // parseASNWhoisRaw 从原始 ASN WHOIS 响应中解析结构化数据

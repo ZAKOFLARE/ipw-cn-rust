@@ -68,12 +68,12 @@ curl ${config.DualStackAPI}
 const html = ref('');
 const apiList = config.IPLocationAPIs
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value]?.url || '')
+const backendID = computed(() => apiList[currentApiIndex.value]?.id || '')
 const ipAddress = ref('');
 const IPLocation = ref<IPLocationType>({});
 const UserIP = ref('');
 const error = ref('')
-const locationUrl = computed(() => remoteAPI.value + "v1/location/" + ipAddress.value);
+const locationUrl = computed(() => "/middleware/" + backendID.value + "/location/" + ipAddress.value);
 
 const { data: locationData, error: locationError, execute: executeLocation } = useFetch<IPLocationType>(locationUrl, {
   immediate: false,

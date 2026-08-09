@@ -72,7 +72,7 @@ const recordTypes = [
 ]
 
 const dnsServerFetches = config.NSLookup.map((server) => {
-  const url = computed(() => server.url + 'v1/dns/' + recordType.value + "/" + domain.value);
+  const url = computed(() => "/middleware/" + server.id + "/dns/" + recordType.value + "/" + domain.value);
   const { data, error, execute } = useFetch(url, {
     immediate: false,
     watch: false,
@@ -238,7 +238,7 @@ const doc = page.value;
 
         <span class="quate">NS</span> 域名的 DNS 服务器地址，例如 <span class="quate">ns3.dnsv2.com</span>，推荐 华为云DNS.<br/>
 
-        网站开启IPv6检测 网站开启IPv6检测 | SSL证书在线检查<br/>
+        <a href="/ipv6webcheck" target="_blank">网站开启IPv6检测</a> | <a href="/ssl" target="_blank">SSL证书在线检查</a><br/>
 
         访客IP: {{userIP }}，您的网络 {{ isIPv6(userIP) ? 'IPv6' : 'IPv4'}} 访问优先<br/>
     </blockquote>

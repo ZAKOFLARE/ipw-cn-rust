@@ -231,7 +231,6 @@ var (
 	DNS_SERVER     string
 	sslCache       sync.Map
 	pingCache      sync.Map
-	udpCache       sync.Map
 	speedCache     sync.Map
 	whoisCache     sync.Map
 	asnWhoisCache  sync.Map
@@ -242,6 +241,9 @@ var (
 	CORS           string
 	ACCEPT_DOMAINS []string
 	ACCESS_TOKEN   string
+	VERSION        string
+	COMMIT         string
+	BUILD_TIME     string
 )
 
 type websiteCacheEntry struct {
@@ -256,11 +258,6 @@ type sslCacheEntry struct {
 
 type pingCacheEntry struct {
 	result    *TCPingResult
-	timestamp time.Time
-}
-
-type udpCacheEntry struct {
-	result    *UDPingResult
 	timestamp time.Time
 }
 
@@ -322,10 +319,6 @@ type SSLCheckResult struct {
 type TCPingResult struct {
 	IPv4 *webtest.TCPingStats `json:"ipv4"`
 	IPv6 *webtest.TCPingStats `json:"ipv6"`
-}
-type UDPingResult struct {
-	IPv4 *webtest.UDPingStats `json:"ipv4"`
-	IPv6 *webtest.UDPingStats `json:"ipv6"`
 }
 type WebsiteSpeedTestResult struct {
 	Version          string  `json:"version"`
@@ -1207,132 +1200,6 @@ func pingHandler(c *gin.Context) {
 	c.JSON(200, rawResult.(*TCPingResult))
 }
 
-func udpingHandler(c *gin.Context) {
-	host := c.Param("ip")
-	port := c.Query("port")
-	if host == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "IP or hostname parameter is required",
-		})
-		return
-	}
-	if port == "" {
-		port = "53"
-	}
-	portNum, err := strconv.Atoi(port)
-	if err != nil || portNum < 1 || portNum > 65535 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid port number",
-		})
-		return
-	}
-
-	count := 4
-	if countStr := c.Query("count"); countStr != "" {
-		n, err := strconv.Atoi(countStr)
-		if err != nil || n < 1 || n > 20 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "count must be an integer between 1 and 20",
-			})
-			return
-		}
-		count = n
-	}
-
-	timeout := 3 * time.Second
-	if timeoutStr := c.Query("timeout"); timeoutStr != "" {
-		d, err := time.ParseDuration(timeoutStr)
-		if err != nil || d <= 0 || d > 30*time.Second {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "timeout must be a duration between 1ms and 30s (e.g. 2s)",
-			})
-			return
-		}
-		timeout = d
-	}
-
-	cacheKey := fmt.Sprintf("udp:%s:%s:%d:%s", host, port, count, timeout.String())
-	if cached, ok := udpCache.Load(cacheKey); ok {
-		entry := cached.(udpCacheEntry)
-		if time.Since(entry.timestamp) < 5*time.Minute {
-			c.JSON(200, entry.result)
-			return
-		}
-		udpCache.Delete(cacheKey)
-	}
-
-	rawResult, _, _ := sfGroup.Do(cacheKey, func() (interface{}, error) {
-		result := &UDPingResult{}
-
-		switch SINGLE_STACK {
-		case "ipv4":
-			ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
-			if errV4 != nil {
-				ipv4 = &webtest.UDPingStats{
-					IP: "Error: " + errV4.Error(),
-				}
-			}
-			result.IPv4 = ipv4
-			result.IPv6 = &webtest.UDPingStats{
-				IP: "Skipped due to SINGLE_STACK=ipv4",
-			}
-		case "ipv6":
-			ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
-			if errV6 != nil {
-				ipv6 = &webtest.UDPingStats{
-					IP: "Error: " + errV6.Error(),
-				}
-			}
-			result.IPv6 = ipv6
-			result.IPv4 = &webtest.UDPingStats{
-				IP: "Skipped due to SINGLE_STACK=ipv6",
-			}
-		default:
-			var wg sync.WaitGroup
-			wg.Add(2)
-
-			go func() {
-				defer wg.Done()
-				ipv6, errV6 := webtest.UDPingRun(host, port, count, "v6", timeout, 100*time.Millisecond)
-				if errV6 != nil {
-					ipv6 = &webtest.UDPingStats{
-						IP: "Error: " + errV6.Error(),
-					}
-				}
-				result.IPv6 = ipv6
-			}()
-
-			go func() {
-				defer wg.Done()
-				ipv4, errV4 := webtest.UDPingRun(host, port, count, "v4", timeout, 100*time.Millisecond)
-				if errV4 != nil {
-					ipv4 = &webtest.UDPingStats{
-						IP: "Error: " + errV4.Error(),
-					}
-				}
-				result.IPv4 = ipv4
-			}()
-
-			wg.Wait()
-		}
-
-		udpCache.Store(cacheKey, udpCacheEntry{result: result, timestamp: time.Now()})
-
-		ipv4Failed := result.IPv4 != nil && strings.HasPrefix(result.IPv4.IP, "Error:")
-		ipv6Failed := result.IPv6 != nil && strings.HasPrefix(result.IPv6.IP, "Error:")
-		if ipv4Failed && ipv6Failed {
-			go func() {
-				time.Sleep(30 * time.Second)
-				udpCache.Delete(cacheKey)
-			}()
-		}
-
-		return result, nil
-	})
-
-	c.JSON(200, rawResult.(*UDPingResult))
-}
-
 func healchCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
@@ -1400,12 +1267,23 @@ func readConfig() {
 }
 
 func main() {
+	for _, vaule := range os.Args {
+		if vaule == "-v" || vaule == "--version" || vaule == "version" {
+			fmt.Println("LEMON IPW TEST NODE GOLANG VERSION" + VERSION)
+			fmt.Println("COMMIT" + COMMIT)
+			fmt.Println("BUILD_TIME" + BUILD_TIME)
+			return
+		}
+
+	}
+	slog.Info("LEMON IPW TEST NODE GOLANG VERSION", "version", VERSION, "commit", COMMIT, "build_time", BUILD_TIME)
 	readConfig()
 	webtest.SetDNSServer(DNS_SERVER)
 	initHTTPClients()
 	if IPDB != "false" {
 		ipdb.Init(GH_PROXY)
 	}
+
 	slog.Info("Starting server", "port", PORTS, "gh_proxy", GH_PROXY, "single_stack", SINGLE_STACK, "dns_server", DNS_SERVER, "CORS_ACCEPT", ACCEPT_DOMAINS)
 
 	r := gin.Default()
@@ -1426,7 +1304,6 @@ func main() {
 		v1.GET("/detail/*url", checkWebsiteHandler)
 		v1.GET("/ssl/*url", sslCheckHandler)
 		v1.GET("/tcping/:ip", pingHandler)
-		v1.GET("/udping/:ip", udpingHandler)
 		v1.GET("/dns/:type/*domain", dnsQueryHandler)
 		v1.GET("/dnssec/:domain", dnssecHandler)
 		v1.GET("/whois/:domain", whoisHandler)

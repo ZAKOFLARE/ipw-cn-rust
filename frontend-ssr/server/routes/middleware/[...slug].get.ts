@@ -1,0 +1,147 @@
+import { defineEventHandler, getQuery, createError } from 'h3'
+import { config } from '../../../config/index'
+export default defineEventHandler(async (event) => {
+    const slugString: string = event.context.params?.slug as any
+    if (!slugString) {
+        throw createError({ statusCode: 400, statusMessage: 'Missing slug parameter' })
+    } 
+    // 将路径参数转为数组
+    const slug: string[] = slugString ? slugString.split('/') : []
+    // 验证 slug 数组的长度是否在允许范围内
+    if (!slug || Object.keys(slug).length === 0 || Object.keys(slug).length > 4) {
+        throw createError({ statusCode: 400, statusMessage: 'Invalid slug' })
+    }
+    // 分割参数
+    const backendID: any = slug[0]
+    const apiType: any = slug[1]
+    const raw: any = slug.slice(2).join('/')
+    if (!backendID || !apiType || !raw) {
+        throw createError({ statusCode: 400, statusMessage: 'Missing parameters in slug' })
+    }
+    const query = getQuery(event)
+
+    // 从运行时变量读取 APIKEYS (JSON字符串)，解析后按 backendID 查找 token
+    const runtimeConfig = useRuntimeConfig(event)
+    let apiKey: string | undefined
+    try {
+        const apiKeysMap = runtimeConfig.apiKeys ? JSON.parse(runtimeConfig.apiKeys) as Record<string, string> : {}
+        apiKey = apiKeysMap[backendID]
+        console.log('[middleware debug] runtimeConfig.apiKeys raw:', runtimeConfig.apiKeys ? 'set (len=' + runtimeConfig.apiKeys.length + ')' : 'NOT SET')
+        console.log('[middleware debug] backendID:', backendID, '| apiKeysMap keys:', Object.keys(apiKeysMap))
+        console.log('[middleware debug] matched apiKey:', apiKey ? 'FOUND (' + apiKey.slice(0, 8) + '...)' : 'NOT FOUND')
+    } catch (e) {
+        console.log('[middleware debug] JSON parse FAILED:', e)
+    }
+    const authHeaders: Record<string, string> = {
+        'Origin': config.siteUrl.replace(/\/$/, ''),
+    }
+    if (apiKey) {
+        authHeaders['Authorization'] = `Bearer ${apiKey}`
+        console.log('[middleware debug] authHeaders SET Authorization:', `Bearer ${apiKey.slice(0, 8)}...`)
+    } else {
+        console.log('[middleware debug] authHeaders NO Authorization header')
+    }
+    
+    if (apiType === 'whois' || apiType === 'dns' || apiType === 'location' || apiType === 'ssl' || apiType === 'asn' || apiType === 'dnssec' || apiType === 'detail') {
+        let apiBaseUrls: Array<{ id: string, url: string ,label: string}> = []
+        switch (apiType) {
+            case 'whois':
+                apiBaseUrls = [...config.apiBaseUrls]
+                break
+            case 'dns':
+                apiBaseUrls = [...config.NSLookup]
+                break
+            case 'location':
+                apiBaseUrls = [...config.IPLocationAPIs]
+                break
+            case 'ssl':
+                apiBaseUrls = [...config.apiBaseUrls]
+                break
+            case 'asn':
+                apiBaseUrls = [...config.IPLocationAPIs]
+                break
+            case 'dnssec':
+                apiBaseUrls = [...config.NSLookup]
+                break
+            case 'detail':
+                apiBaseUrls = [...config.apiBaseUrls]
+                break
+            default:
+                throw createError({ statusCode: 400, statusMessage: 'Invalid API type' })
+        }
+        const map = new Map<string, string>(apiBaseUrls.map(api => [api.id, api.url]))
+        if (!map.has(backendID)) {
+            throw createError({ statusCode: 400, statusMessage: 'Invalid backend ID' })
+        }
+        let apiBaseUrl = map.get(backendID)
+        if (apiBaseUrl === undefined) {
+            throw createError({ statusCode: 400, statusMessage: 'API base URL not found for the given backend ID' })
+        }
+        let data: any = {}
+
+        if (apiBaseUrl.slice(-1) != '/') {
+            apiBaseUrl = `${apiBaseUrl}/`
+            }
+            data = await $fetch(`${apiBaseUrl}v1/${apiType}/${raw}`, {
+                method: 'GET',
+                headers: authHeaders,
+            }).catch((error) => {
+                console.error(`Error fetching from ${apiBaseUrl}:`, error)
+                throw createError({ statusCode: 500, statusMessage: 'Backend error '+error })
+            })|| {}
+        if (!data || Object.keys(data).length === 0) {
+            throw createError({ statusCode: 500, statusMessage: 'Backend error' })
+        }
+            
+        return data
+    }else if (apiType === 'tcping' || apiType === 'udping' || apiType === 'speed') {
+        let apiBaseUrls:Array<{ id: string, url: string ,label: string}> = []
+        let apiTypeConfig: any = {}
+        switch (apiType) {
+            case 'tcping':
+                apiTypeConfig = config.TCPing
+                apiBaseUrls = [...apiTypeConfig.DualStack, ...apiTypeConfig.IPv4, ...apiTypeConfig.IPv6]
+                break
+            case 'speed':
+                apiTypeConfig = config.SpeedTest
+                apiBaseUrls = [...apiTypeConfig.DualStack, ...apiTypeConfig.IPv4, ...apiTypeConfig.IPv6]
+                break
+            default:
+                throw createError({ statusCode: 400, statusMessage: 'Invalid API type' })
+
+        }
+        const map = new Map<string, string>(apiBaseUrls.map(api => [api.id, api.url]))
+        if (!map.has(backendID)) {
+            throw createError({ statusCode: 400, statusMessage: 'Invalid backend ID' })
+        }
+        let apiBaseUrl = map.get(backendID)
+        if (apiBaseUrl === undefined) {
+            throw createError({ statusCode: 400, statusMessage: 'API base URL not found for the given backend ID' })
+        }
+        let data: any = {}
+
+        if (apiBaseUrl.slice(-1) != '/') {
+            apiBaseUrl = `${apiBaseUrl}/`
+            }
+
+        const queryString = new URLSearchParams(
+            Object.entries(query).filter(([_, v]) => v !== undefined) as [string, string][]
+        ).toString()
+
+        data = await $fetch(`${apiBaseUrl}v1/${apiType}/${raw}${queryString ? '?' + queryString : ''}`, {
+                method: 'GET',
+                headers: authHeaders,
+            }).catch((error) => {
+                console.error(`Error fetching from ${apiBaseUrl}:`, error)
+                throw createError({ statusCode: 500, statusMessage: 'Backend error '+error })
+            })|| {}
+        if (!data || Object.keys(data).length === 0) {
+            throw createError({ statusCode: 500, statusMessage: 'Backend error' })
+        }
+            
+        return data
+
+        
+    }
+
+    })

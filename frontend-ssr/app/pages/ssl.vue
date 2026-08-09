@@ -64,13 +64,13 @@ interface SSLCheckItem {
 }
 const apiList = config.apiBaseUrls
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value]?.url || '')
+const backendID = computed(() => apiList[currentApiIndex.value]?.id || '')
 const tmpDomain = ref('https://www.zakoflare.com')
 const testDomain = ref('')
 const loading = ref(false)
 const error = ref('')
 const result = ref<SSLCheckResponse | null>(null)
-const sslUrl = computed(() => remoteAPI.value + 'v1/ssl/' + testDomain.value);
+const sslUrl = computed(() => "/middleware/" + backendID.value + "/ssl/" + testDomain.value);
 
 const { data: sslData, error: sslError, execute: executeSSL } = useFetch<SSLCheckResponse>(sslUrl, {
   immediate: false,

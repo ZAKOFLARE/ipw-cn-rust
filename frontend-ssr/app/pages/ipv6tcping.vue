@@ -58,6 +58,7 @@ interface TCPingResponse {
 }
 
 interface ServerConfig {
+  id: string
   label: string
   url: string
 }
@@ -82,7 +83,7 @@ const allServers = [
 ];
 
 const tcpingFetches = allServers.map((server) => {
-  const url = computed(() => server.url + 'v1/tcping/' + extractHost(tmpDomain.value) + '?port=' + port.value);
+  const url = computed(() => "/middleware/" + server.id + "/tcping/" + extractHost(tmpDomain.value) + "?port=" + port.value);
   const { data, error: fetchError, execute } = useFetch<TCPingResponse>(url, {
     immediate: false,
     watch: false,
@@ -253,7 +254,7 @@ onMounted(() => {
         macOS 或 Linux: ping6 ipw.wsmdn.top<br/>
         <strong>2. 服务器 IPv6 Ping 失败可能原因：</strong><br/>
         服务器已开启 IPv6，但防火墙（又名安全组）未对源地址是 IPv6 地址(::/0)的 ICMPv6协议 开放访问，<br/>
-        服务器未开启 IPv6，请参考 服务器开启 IPv6<br/>
+        服务器未开启 IPv6，请参考 <a href="/doc/server/website_enable_ipv6" target="_blank">服务器开启 IPv6</a><br/>
         <a href="/tcping" target="_blank">IPv4 TCPing 测试</a> | <a href="/ipv6speedtest" target="_blank">IPv6 网站测速</a> | <a href="/ipv6webcheck">网站开启IPv6检测</a> | <a href="/dns">DNS解析查询</a> <br/>
 
         访客IP: {{ userIP }}，您的网络{{ isIPv6(userIP) ? 'IPv6' : 'IPv4'}}访问优先

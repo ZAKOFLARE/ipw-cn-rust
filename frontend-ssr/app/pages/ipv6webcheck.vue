@@ -62,13 +62,13 @@ interface PerformanceCheckItem {
 }
 const apiList = config.apiBaseUrls
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value]?.url || '')
+const backendID = computed(() => apiList[currentApiIndex.value]?.id || '')
 const tmpDomain = ref('https://www.zakoflare.com')
 const testDomain = ref('')
 const loading = ref(false)
 const error = ref('')
 const result = ref<PerformanceCheckResponse | null>(null)
-const checkUrl = computed(() => remoteAPI.value + 'v1/detail/' + testDomain.value);
+const checkUrl = computed(() => "/middleware/" + backendID.value + "/detail/" + testDomain.value);
 
 const { data: checkData, error: checkError, execute: executeCheck } = useFetch<PerformanceCheckResponse>(checkUrl, {
   immediate: false,
@@ -87,7 +87,6 @@ watch(checkError, async (newError) => {
   if (newError) {
     console.log(newError);
     if (currentApiIndex.value < apiList.length - 1) {
-      
       const nextIndex = currentApiIndex.value + 1
       error.value = `${(newError as any).message || '请求失败'}，正在重试 ${apiList[nextIndex]?.label || ''}...`
       currentApiIndex.value = nextIndex
@@ -276,9 +275,9 @@ onMounted(() => {
     <blockquote>
       网站不支持 IPv6可能原因：<br/>
       <br/>
-      1. 网站所在服务器未开启 IPv6，请参考 网站开启 IPv6 的三种方式<br/>
+      1. 网站所在服务器未开启 IPv6，请参考 <a href="/doc/server/website_enable_ipv6" target="_blank">网站开启 IPv6 的三种方式</a><br/>
       2. 网站所在服务器已开启 IPv6，但防火墙未对源地址是 IPv6 地址(::/0)的 443（HTTPS）端口开放访问<br/>
-      3. 网站所在服务器已开启 IPv6，但未开启SSL证书，请参考 Nginx 开启 IPv6 SSL<br/>
+      3. 网站所在服务器已开启 IPv6，但未开启SSL证书，请参考 <a href="/doc/server/nginx_ipv6" target="_blank">Nginx 开启 IPv6 SSL</a><br/>
     </blockquote>
 
   </div>

@@ -63,6 +63,9 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     indexnowKey: '',
+    apiKeys: JSON.stringify({
+      'cn-jiangsu': 'test'
+    }),
     public: {
       siteUrl: config.siteUrl,
       docConfig: docConfig,

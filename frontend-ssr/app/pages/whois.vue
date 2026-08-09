@@ -65,9 +65,8 @@ const userIP = ref('')
 
 const apiList = config.apiBaseUrls
 const currentApiIndex = ref(0)
-const remoteAPI = computed(() => apiList[currentApiIndex.value]?.url || '')
-
-const whoisUrl = computed(() => remoteAPI.value + 'v1/whois/' + domain.value)
+const backendID = computed(() => apiList[currentApiIndex.value]?.id || '')
+const whoisUrl = computed(() => '/middleware/' + backendID.value + '/whois/' + domain.value)
 
 const { data: whoisData, error: whoisError, execute: executeWhois } = useFetch<any>(whoisUrl, {
   immediate: false,
@@ -83,7 +82,8 @@ watch(whoisData, (newData) => {
 })
 
 watch(whoisError, async (newError) => {
-  if (newError && !result.value) {
+  if (newError) {
+    console.log(newError)
     if (currentApiIndex.value < apiList.length - 1) {
       const nextIndex = currentApiIndex.value + 1
       error.value = `${(newError as any).message || '请求失败'}，正在重试 ${apiList[nextIndex]?.label || ''}...`
@@ -91,7 +91,7 @@ watch(whoisError, async (newError) => {
       await nextTick()
       executeWhois()
     } else {
-      error.value = (newError as any).data?.message || (newError as any).message || '查询失败，请检查域名或稍后重试'
+      error.value = '请求失败，请检查域名或网络'
       loading.value = false
     }
   }
@@ -117,7 +117,7 @@ onMounted(() => {
     getUserIP()
     const whoisParam = route.query.site as string
     if (whoisParam) {
-        domain.value = whoisParam
+        tmpdomain.value = whoisParam
         queryWhois()
     }
 })
@@ -265,7 +265,6 @@ function getStatusClass(status: string): string {
 
     <blockquote>
       数据来源：后端 WHOIS 服务，通过 IANA 注册局 bootstrap 文件自动匹配对应 WHOIS 服务器。<br/>
-      CNNIC的RDAP不对外开放，cn、中国等域名无法解析<br/>
       部分注册局对注册人信息做了隐私保护，将显示为 "Redacted for Privacy"。<br/>
       如需查看完整注册信息，可点击 "查看注册信息" 链接跳转到注册局官网查询。<br/>
       访客IP: {{ userIP || '获取中...' }} 您的网络{{ isIPv6(userIP) ? 'IPv6' : 'IPv4' }}优先<br/>

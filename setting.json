@@ -2,7 +2,7 @@
     "port": 8080,
     "gh-proxy": "",
     "single-stack": "",
-    "dns-server": "8.8.8.8:53",
+    "dns-server": "",
     "block-private-ips": true,
     "ipdb": true,
     "cors": "",
