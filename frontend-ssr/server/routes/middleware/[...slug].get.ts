@@ -6,11 +6,26 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'Missing slug parameter' })
     } 
     // 将路径参数转为数组
-    const slug: string[] = slugString ? slugString.split('/') : []
+    let slug: string[] = slugString ? slugString.split('/') : []
+    console.debug('[middleware debug] raw slugString:', slugString, '| split:', slug)
     // 验证 slug 数组的长度是否在允许范围内
-    if (!slug || Object.keys(slug).length === 0 || Object.keys(slug).length > 4) {
+    if (!slug || Object.keys(slug).length === 0) {
         throw createError({ statusCode: 400, statusMessage: 'Invalid slug' })
     }
+    // 如果分段超过4个，可能是 raw 部分包含协议（如 https://example.com），
+    // 按 / 分割后会产生额外分段，需要重新拼回
+    if (slug.length > 4) {
+        const backendID = slug[0]!
+        const apiType = slug[1]!
+        const protocol = slug[2]!
+        const rest = slug.slice(3).filter(Boolean).join('/')
+        if (protocol === 'https:' || protocol === 'http:') {
+            slug = [backendID, apiType, `${protocol}//${rest}`]
+        } else {
+            throw createError({ statusCode: 400, statusMessage: 'Invalid slug' })
+        }
+    }
+    console.log('[middleware debug] final slug:', slug)
     // 分割参数
     const backendID: any = slug[0]
     const apiType: any = slug[1]
@@ -26,20 +41,20 @@ export default defineEventHandler(async (event) => {
     try {
         const apiKeysMap = runtimeConfig.apiKeys ? JSON.parse(runtimeConfig.apiKeys) as Record<string, string> : {}
         apiKey = apiKeysMap[backendID]
-        console.log('[middleware debug] runtimeConfig.apiKeys raw:', runtimeConfig.apiKeys ? 'set (len=' + runtimeConfig.apiKeys.length + ')' : 'NOT SET')
-        console.log('[middleware debug] backendID:', backendID, '| apiKeysMap keys:', Object.keys(apiKeysMap))
-        console.log('[middleware debug] matched apiKey:', apiKey ? 'FOUND (' + apiKey.slice(0, 8) + '...)' : 'NOT FOUND')
+        console.debug('[middleware debug] runtimeConfig.apiKeys raw:', runtimeConfig.apiKeys ? 'set (len=' + runtimeConfig.apiKeys.length + ')' : 'NOT SET')
+        console.debug('[middleware debug] backendID:', backendID, '| apiKeysMap keys:', Object.keys(apiKeysMap))
+        console.debug('[middleware debug] matched apiKey:', apiKey ? 'FOUND (' + apiKey.slice(0, 1) + '...)' : 'NOT FOUND')
     } catch (e) {
-        console.log('[middleware debug] JSON parse FAILED:', e)
+        console.debug('[middleware debug] JSON parse FAILED:', e)
     }
     const authHeaders: Record<string, string> = {
         'Origin': config.siteUrl.replace(/\/$/, ''),
     }
     if (apiKey) {
         authHeaders['Authorization'] = `Bearer ${apiKey}`
-        console.log('[middleware debug] authHeaders SET Authorization:', `Bearer ${apiKey.slice(0, 8)}...`)
+        console.debug('[middleware debug] authHeaders SET Authorization:', `Bearer ${apiKey.slice(0, 1)}...`)
     } else {
-        console.log('[middleware debug] authHeaders NO Authorization header')
+        console.debug('[middleware debug] authHeaders NO Authorization header')
     }
     
     if (apiType === 'whois' || apiType === 'dns' || apiType === 'location' || apiType === 'ssl' || apiType === 'asn' || apiType === 'dnssec' || apiType === 'detail') {

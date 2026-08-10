@@ -59,6 +59,7 @@ interface DNSSECResult {
 interface ServerResult {
   label: string
   loading: boolean
+  error?: string
   data?: DNSSECResult
 }
 
@@ -71,11 +72,11 @@ const apiList = config.NSLookup
 
 const dnssecFetches = apiList.map((server) => {
   const url = computed(() => "/middleware/" + server.id + "/dnssec/" + tmpDomain.value)
-  const { data, execute } = useFetch<DNSSECResult>(url, {
+  const { data, error, execute } = useFetch<DNSSECResult>(url, {
     immediate: false,
     watch: false,
   })
-  return { label: server.label, data, execute }
+  return { label: server.label, data, error, execute }
 })
 
 function initServerResults() {
@@ -105,6 +106,10 @@ async function checkDNSSEC() {
       }
     } catch (err) {
       console.error(err)
+      const result = serverResults.value[index]
+      if (result) {
+        result.error = (err as any)?.message || '请求失败'
+      }
     } finally {
       const result = serverResults.value[index]
       if (result) {
@@ -219,6 +224,10 @@ async function getUserIP() {
             <tr v-else-if="server.loading">
               <td class="table-label">{{ server.label }}</td>
               <td class="table-value" colspan="6">加载中...</td>
+            </tr>
+            <tr v-else-if="server.error">
+              <td class="table-label">{{ server.label }}</td>
+              <td class="table-value error-text" colspan="6">{{ server.error }}</td>
             </tr>
             <tr v-else-if="!server.data">
               <td class="table-label">{{ server.label }}</td>

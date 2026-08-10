@@ -137,7 +137,7 @@ function TCPingAll() {
       console.error(err);
       const result = serverResults.value[index];
       if (result) {
-        result.error = '请求失败';
+        result.error = (err as any)?.message || '请求失败';
       }
     } finally {
       const result = serverResults.value[index];

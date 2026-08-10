@@ -52,7 +52,7 @@ const domain = ref('')
 interface ServerResult {
   label: string
   loading: boolean
-  error: string
+  error?: string | Error
   data: any
 }
 

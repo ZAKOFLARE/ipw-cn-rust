@@ -203,7 +203,10 @@ const doc = page.value;
             <td class="table-label">{{result.server}}</td>
             <td class="table-value">{{nowRecordType.toUpperCase() || '--'}}</td>
             <td class="table-value" v-if="result.loading" colspan="4" style="text-align: left;">加载中...</td>
-            <td class="table-value" v-if="!result.loading">
+            <td class="table-value" v-else-if="result.error" colspan="4" style="color: #F56C6C;">
+              {{ result.error?.message || '请求失败' }}
+            </td>
+            <td class="table-value" v-else-if="!result.loading">
               <template v-if="result && result.data?.record">
                 <div v-for="(ip, index) in result.data.record.slice(0, 5)" :key="index" class="ip-address">
                   <span>{{ ip }}</span>

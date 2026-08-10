@@ -7,6 +7,8 @@ import { extractHost, getStatusCodeClass, formatTime, formatSize, formatSpeed } 
 
 const route = useRoute()
 
+const siteUrlWithSlash = computed(() => config.siteUrl.replace(/\/$/, '') + '/')
+
 useHead({
   title: 'IPv6网站检测工具 | IPv6访问支持检查 | 柠檬味ipw.cn',
   meta: [
@@ -14,7 +16,7 @@ useHead({
     { name: 'keywords', content: 'ipv6网站检测,ipv6访问检测,ipv6支持检查,ipv6双栈检测,ipv6 http检测,ipv6 https检测,ipv6网站认证,ipv6徽标,ipv6部署' },
     { property: 'og:title', content: 'IPv6网站检测 - IPv6访问支持状态检查与认证' },
     { property: 'og:description', content: '全面检测网站IPv6访问支持情况,提供详细性能对比与IPv6徽标认证' },
-    { property: 'og:image', content: config.siteUrl + 'favicon.svg' },
+    { property: 'og:image', content: siteUrlWithSlash.value + 'favicon.svg' },
     { property: 'og:type', content: 'website' },
   ],
   script: [
@@ -25,7 +27,7 @@ useHead({
         '@type': 'WebApplication',
         name: 'IPv6网站访问支持检测',
         description: '专业的IPv6网站检测工具，检查网站是否支持IPv6访问，提供IPv4和IPv6双栈HTTP/HTTPS状态码、DNS解析时间、TCP连接时间等详细对比数据，提供IPv6徽标认证。',
-        url: config.siteUrl + 'ipv6webcheck',
+        url: siteUrlWithSlash.value + 'ipv6webcheck',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Web',
         offers: {
@@ -231,17 +233,17 @@ onMounted(() => {
       <h3>结论：<el-icon><CircleCheckFilled style="color: lightgreen;"/></el-icon>网站{{ extractHost(testDomain) }} 支持IPv6访问 </h3>
       <p><el-icon><InfoFilled style="color: lightgreen;"/></el-icon>请把下方代码贴到网站底部，把这个好消息告诉你的用户，以便用户核验。</p>
         <img src="/ipv6-s1.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s1.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s1.svg"&gt;&lt;/a&gt;</code></pre>
         <img src="/ipv6-s2.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s2.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s2.svg"&gt;&lt;/a&gt;</code></pre>
         <img src="/ipv6-s3.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s3.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s3.svg"&gt;&lt;/a&gt;</code></pre>
         <img src="/ipv6-s4.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s4.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s4.svg"&gt;&lt;/a&gt;</code></pre>
         <img src="/ipv6-s5.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s5.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s5.svg"&gt;&lt;/a&gt;</code></pre>
         <img src="/ipv6-s6.svg"/>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-s6.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-s6.svg"&gt;&lt;/a&gt;</code></pre>
         <div class="one-line">
             <img src="/ipv6-certified-lite-s1.svg"/>
             <img src="/ipv6-certified-lite-s2.svg"/>
@@ -250,7 +252,7 @@ onMounted(() => {
             <img src="/ipv6-certified-lite-s5.svg"/>
             <img src="/ipv6-certified-lite-s6.svg"/>
         </div>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-certified-lite-s1.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-certified-lite-s1.svg"&gt;&lt;/a&gt;</code></pre>
         <div class="one-line">
             <img src="/ipv6-certified-s1.svg"/>
             <img src="/ipv6-certified-s2.svg"/>
@@ -259,7 +261,7 @@ onMounted(() => {
             <img src="/ipv6-certified-s5.svg"/>
             <img src="/ipv6-certified-s6.svg"/>
         </div>
-        <pre><code>&lt;a href="{{ config.siteUrl }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ config.siteUrl }}/ipv6-certified-s1.svg"&gt;&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="{{ siteUrlWithSlash }}ipv6webcheck/?site={{ extractHost(testDomain) }}" title="本站支持 IPv6访问" target='_blank'&gt;&lt;img style='display:inline-block;vertical-align:middle' alt="本站支持 IPv6访问" src="{{ siteUrlWithSlash }}ipv6-certified-s1.svg"&gt;&lt;/a&gt;</code></pre>
         <p>提示：修改IPv6徽标文件名，可修改对应样式</p>
     </div>
     <div v-else-if="result && result.ipv4 && result.ipv6 && result.ipv4.is_reachable && !result.ipv6.is_reachable">
