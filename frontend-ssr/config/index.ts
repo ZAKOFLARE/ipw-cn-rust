@@ -66,6 +66,11 @@ const config = {
                 url :"https://sg-1.api-ipw.wsmdn.top/",
             },
             {
+                label: "中国 香港 新界 西贡区 将军澳 MICC[ZFC]",
+                id: "hk-shatin",
+                url :"https://china-hk-kowloon-shatindistrict-newcloud.ipwapi.zfap.wsmdn.top/",
+            },
+            {
                 label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
                 id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
@@ -73,7 +78,7 @@ const config = {
             {
                 label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
                 id: "us-la",
-                url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
+                url :"https://america-california-losangeles.ipwapi.zfap.wsmdn.top/",
             }
         ],
         IPv6: [
@@ -114,6 +119,11 @@ const config = {
                 url :"https://sg-1.api-ipw.wsmdn.top/",
             },
             {
+                label: "中国 香港 新界 西贡区 将军澳 MICC[ZFC]",
+                id: "hk-shatin",
+                url :"https://china-hk-kowloon-shatindistrict-newcloud.ipwapi.zfap.wsmdn.top/",
+            },
+            {
                 label: "中国 陕西 西安 北经济技术开发区 未央区凤城 中国电信[ZFC]",
                 id: "cn-xian",
                 url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
@@ -121,7 +131,7 @@ const config = {
             {
                 label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
                 id: "us-la",
-                url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
+                url :"https://america-california-losangeles.ipwapi.zfap.wsmdn.top/",
             }
         ],
         IPv6: [
@@ -164,6 +174,11 @@ const config = {
             url :"https://cn-xian-shaanxiprovince.api-ipw.wsmdn.top/",
         },
         {
+            label: "中国 香港 新界 西贡区 将军澳 MICC[ZFC]",
+            id: "hk-shatin",
+            url :"https://china-hk-kowloon-shatindistrict-newcloud.ipwapi.zfap.wsmdn.top/",
+        },
+        {
             label: "中国 香港 九龙城区 旺角东 Cloudie[ZFC]",
             id: "lntl-cn-hk-kowloon",
             url:"https://lntl-cn-hk-kowloon.api-ipw.wsmdn.top/",
@@ -176,7 +191,7 @@ const config = {
         {
             label: "美国/加利福尼亚州/洛杉矶/蒙特雷帕克/USCD[ZFC]",
             id: "us-la",
-            url :"https://usa.california-losangeles.ipwapi.zfap.wsmdn.top",
+            url :"https://america-california-losangeles.ipwapi.zfap.wsmdn.top/",
         }
     ]
 }

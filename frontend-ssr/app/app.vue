@@ -4,7 +4,6 @@ import { useDark, useToggle } from '@vueuse/core';
 import { Moon, Sunny, Expand } from '@element-plus/icons-vue';
 import { config } from '../config/index';
 
-
 const isNarrow = ref(false);
 let mediaQueryList: MediaQueryList | null = null;
 const drawer = ref(false);
@@ -12,20 +11,11 @@ const drawer = ref(false);
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
 
-function Announcement() {
-  ElMessage({
-    showClose: true,
-    message: '您好,这里是LEMONIPW开发团队,我们很重视您对本项目的意见,诚邀您加入官方交流群进行讨论,欢迎您的加入!QQ:<a href="https://qm.qq.com/q/E1CGjkqgG6" >点我</a>',
-    duration: 3000,
-    dangerouslyUseHTMLString: true,
-  });
+function cleanChineseCharacters(str:string) {
+return str.replace(/[\u4e00-\u9fa5]/g, '');
 }
-function cleanChineseCharacters(input: string): string {
-  // 使用正则表达式匹配中文字符
-  const chineseRegex = /[\u4e00-\u9fa5]/g;
-  // 将中文字符替换为空字符串
-  return input.replace(chineseRegex, '');
-}
+let umamiScript: HTMLScriptElement | null = null
+
 onMounted(() => {
   mediaQueryList = window.matchMedia('(max-width: 768px)');
   isNarrow.value = mediaQueryList.matches;
@@ -39,25 +29,15 @@ onMounted(() => {
   onBeforeUnmount(() => {
     mediaQueryList?.removeEventListener('change', handler);
   });
-});
 
-useHead({
-  // 在 HTML 解析前同步执行，防止明暗切换和页面闪烁
-  script: [
-    {
-      defer: true,
-      src: config.umamiScriptUrl,
-      'data-website-id': config.umamiWebsiteId,
-    },
-  ],
-  meta: config.noindex
-    ? [
-        { name: 'robots', content: 'noindex, nofollow' },
-        { name: 'googlebot', content: 'noindex, nofollow' },
-        { name: 'bingbot', content: 'noindex, nofollow' },
-      ]
-    : [],
-});
+  if (!umamiScript && config.umamiScriptUrl) {
+    umamiScript = document.createElement('script')
+    umamiScript.src = config.umamiScriptUrl
+    umamiScript.async = true
+    umamiScript.setAttribute('data-website-id', config.umamiWebsiteId)
+    document.head.appendChild(umamiScript)
+  }
+})
 </script>
 
 <template>
@@ -239,6 +219,7 @@ html.dark {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 1em;
 }
 .el-drawer__body a p {
   display: block !important;
