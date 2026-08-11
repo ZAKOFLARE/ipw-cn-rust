@@ -99,6 +99,14 @@ function takeScreenshot() {
     detectionImg.onload = () => {
       if (requestId !== currentRequestId) return
 
+      // 307 Temporary Redirect to mshots default — target is still generating
+      if (detectionImg!.currentSrc?.endsWith('/mshots/v1/default')) {
+        cleanupDetection()
+        loading.value = false
+        error.value = '正在生成截图中，请稍后...'
+        return
+      }
+
       // WordPress mshots default error images are exactly 1200x900.
       // Real website screenshots can be any dimensions.
       if (
@@ -134,7 +142,10 @@ function takeScreenshot() {
 // browser behavior with 302 redirects. The hidden detection image above
 // handles the primary success/failure determination.
 function onImageLoad() {
-  // Don't clear loading here — wait for detection to complete
+  if (detectionImg && detectionImg.currentSrc?.endsWith('/mshots/v1/default')) {
+    error.value = '正在生成截图中，请稍后...'
+    loading.value = false
+  }
 }
 
 function onImageError() {
