@@ -133,20 +133,22 @@ var zstdReaderPool = sync.Pool{
 
 func decompressZstd(r io.ReadCloser) (io.ReadCloser, error) {
 	zr := zstdReaderPool.Get().(*zstd.Decoder)
-
-	err := zr.Reset(r)
-	if err != nil {
-		zstdReaderPool.Put(zr)
-		zr, _ = zstd.NewReader(r)
+	if err := zr.Reset(r); err != nil {
+		zr.Close()
+		var newErr error
+		zr, newErr = zstd.NewReader(r)
+		if newErr != nil {
+			return nil, newErr
+		}
 	}
-	defer zstdReaderPool.Put(zr)
-	z := &zstdReader{s: r, r: zr}
-	return z, nil
+	return &zstdReader{s: r, r: zr}, nil
 }
 
 type zstdReader struct {
-	s io.ReadCloser
-	r *zstd.Decoder
+	s         io.ReadCloser
+	r         *zstd.Decoder
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func (b *zstdReader) Read(p []byte) (n int, err error) {
@@ -154,8 +156,18 @@ func (b *zstdReader) Read(p []byte) (n int, err error) {
 }
 
 func (b *zstdReader) Close() error {
-	b.r.Close()
-	return b.s.Close()
+	b.closeOnce.Do(func() {
+		b.closeErr = b.s.Close()
+		if err := b.r.Reset(nil); err != nil {
+			b.r.Close()
+			if b.closeErr == nil {
+				b.closeErr = err
+			}
+		} else {
+			zstdReaderPool.Put(b.r)
+		}
+	})
+	return b.closeErr
 }
 func cleanHostRecord(addr string) string {
 	if strings.HasPrefix(addr, "[") {
