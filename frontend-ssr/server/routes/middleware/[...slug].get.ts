@@ -27,9 +27,9 @@ export default defineEventHandler(async (event) => {
     }
     console.log('[middleware debug] final slug:', slug)
     // 分割参数
-    const backendID: any = slug[0]
-    const apiType: any = slug[1]
-    const raw: any = slug.slice(2).join('/')
+    const backendID = slug[0]
+    const apiType = slug[1]
+    const raw = slug.slice(2).join('/')
     if (!backendID || !apiType || !raw) {
         throw createError({ statusCode: 400, statusMessage: 'Missing parameters in slug' })
     }
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     const runtimeConfig = useRuntimeConfig(event)
     let apiKey: string | undefined
     try {
-        const apiKeysMap = runtimeConfig.apiKeys ? JSON.parse(runtimeConfig.apiKeys) as Record<string, string> : {}
+        const apiKeysMap: Record<string, string> = (runtimeConfig.apiKeys || {}) as Record<string, string>
         apiKey = apiKeysMap[backendID]
         console.debug('[middleware debug] runtimeConfig.apiKeys raw:', runtimeConfig.apiKeys ? 'set (len=' + runtimeConfig.apiKeys.length + ')' : 'NOT SET')
         console.debug('[middleware debug] backendID:', backendID, '| apiKeysMap keys:', Object.keys(apiKeysMap))
