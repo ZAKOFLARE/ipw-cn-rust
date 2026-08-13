@@ -10,7 +10,7 @@ const config = {
     // 前端自带中间件始终放在候选列表最后一位兜底。
     // 未配置或为空数组时，直接使用前端自带中间件。
     Middleware: <string[]>[
-        "http://127.0.0.1:8091/",
+        // "http://127.0.0.1:8091/",
         // "https://middleware-2.wsmdn.top/",
     ],
     // Umami 统计
