@@ -1,4 +1,4 @@
-module github.com/ipw-cn/middleware-go
+module github.com/nomdn/ipw-cn/middleware-go
 
 go 1.26.2
 
