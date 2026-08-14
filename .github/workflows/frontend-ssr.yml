@@ -31,4 +31,4 @@ jobs:
         run: |
           cd frontend-ssr
           pnpm install
-          pnpm run deploy
+          pnpm run deploy --keep-vars
