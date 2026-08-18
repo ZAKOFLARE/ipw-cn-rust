@@ -93,6 +93,12 @@ export default defineNuxtConfig({
     },
   },
   security: {
+    ssg: {
+      // /doc 预渲染页的 CSP 会因 SRI modulepreload 哈希全量拼入而单行超 2000 字符，
+      // 触发 Cloudflare _headers 限制；关闭静态页安全头写入 _headers。
+      // SSR 页面仍由运行时中间件下发完整安全头，不受影响。
+      nitroHeaders: false,
+    },
     headers: {
       contentSecurityPolicy: {
 
