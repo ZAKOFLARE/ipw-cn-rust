@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,12 @@ import (
 // 腾讯云标准 DoH 端点
 var dohEndpoint string = "https://doh.pub/dns-query"
 
+// UDP DNS 服务器（DoH 不可用时的回退；dns-server 配置为 ip:port 时作为主通道）
+var dnsServer = "119.28.28.28:53"
+
+// dnsMode 主通道：dns-server 配置为 URL 时为 "doh"，为 ip:port 时为 "udp"
+var dnsMode = "doh"
+
 type DNSResult struct {
 	Domain   string   `json:"domain"`
 	Duration float64  `json:"duration"`
@@ -23,67 +30,107 @@ type DNSResult struct {
 	TTL      uint32   `json:"ttl"`
 }
 
+// SetDNSServer 设置 DNS 服务器：URL（http/https）→ DoH 主通道；ip:port → UDP 主通道
 func SetDNSServer(server string) {
 	if server == "" {
-		server = "https://doh.pub/dns-query"
+		return
 	}
-	dohEndpoint = server
+	if strings.HasPrefix(server, "http://") || strings.HasPrefix(server, "https://") {
+		dohEndpoint = server
+		dnsMode = "doh"
+	} else {
+		dnsServer = server
+		dnsMode = "udp"
+	}
 }
 
 // ==========================================
-// ⭐️ 底层核心：构造、发送并解析二进制 DNS 报文
+// ⭐️ 底层核心：DoH + UDP 双通道 DNS 查询
 // ==========================================
+
+// queryDNSMsg 统一 DNS 查询入口：支持 DoH 与 UDP 双通道自动互备。
+// dnsMode 为 "doh" 时优先 DoH（dohEndpoint），失败回退 UDP（dnsServer）；
+// dnsMode 为 "udp" 时优先 UDP（dnsServer），失败回退 DoH（dohEndpoint）。
+func queryDNSMsg(msg *dns.Msg) (*dns.Msg, float64, error) {
+	if dnsMode == "doh" {
+		resp, dur, err := queryDoHMsg(msg, dohEndpoint)
+		if err == nil {
+			return resp, dur, nil
+		}
+		slog.Warn("DoH query failed, falling back to UDP", "endpoint", dohEndpoint, "error", err)
+		return queryUDPMsg(msg, dnsServer)
+	}
+	resp, dur, err := queryUDPMsg(msg, dnsServer)
+	if err == nil {
+		return resp, dur, nil
+	}
+	slog.Warn("UDP query failed, falling back to DoH", "server", dnsServer, "error", err)
+	return queryDoHMsg(msg, dohEndpoint)
+}
+
+// queryUDPMsg 通过 UDP/TCP 向指定 DNS 服务器发送查询（miekg/dns 自动处理大响应切 TCP）
+func queryUDPMsg(msg *dns.Msg, server string) (*dns.Msg, float64, error) {
+	client := &dns.Client{Timeout: 5 * time.Second}
+	start := time.Now()
+	resp, _, err := client.Exchange(msg, server)
+	duration := time.Since(start).Seconds() * 1000
+	if err != nil {
+		return nil, duration, err
+	}
+	return resp, duration, nil
+}
+
+// queryDoHMsg 通过 DoH（RFC 8484，POST application/dns-message）向指定端点发送查询
+func queryDoHMsg(msg *dns.Msg, endpoint string) (*dns.Msg, float64, error) {
+	packedMsg, err := msg.Pack()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to pack DNS message: %v", err)
+	}
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(packedMsg))
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/dns-message")
+	req.Header.Set("Accept", "application/dns-message")
+	client := &http.Client{Timeout: 5 * time.Second}
+	start := time.Now()
+	resp, err := client.Do(req)
+	duration := time.Since(start).Seconds() * 1000
+	if err != nil {
+		return nil, duration, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, duration, fmt.Errorf("DoH API returned status %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, duration, fmt.Errorf("failed to read response body: %v", err)
+	}
+	responseMsg := new(dns.Msg)
+	if err := responseMsg.Unpack(bodyBytes); err != nil {
+		return nil, duration, fmt.Errorf("failed to unpack DNS response: %v", err)
+	}
+	return responseMsg, duration, nil
+}
+
+// ==========================================
+// 业务层：构造查询并经双通道执行，提取特定记录
+// ==========================================
+
 func executeDoHQuery(domain string, qtype uint16) (*dns.Msg, float64, error) {
 	// 1. 构造标准的 DNS 请求报文
 	msg := new(dns.Msg)
 	msg.SetQuestion(dns.Fqdn(domain), qtype)
 	msg.RecursionDesired = true // 请求递归解析
 
-	// 2. 将 DNS 报文打包成二进制字节流
-	packedMsg, err := msg.Pack()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to pack DNS message: %v", err)
-	}
-
-	// 3. 构造 HTTP POST 请求，Body 为二进制报文
-	req, err := http.NewRequest("POST", dohEndpoint, bytes.NewReader(packedMsg))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// ⭐️ 灵魂 Header：RFC 8484 标准规定的 MIME 类型
-	req.Header.Set("Content-Type", "application/dns-message")
-	req.Header.Set("Accept", "application/dns-message")
-
-	// 4. 发起 HTTPS 请求 (走 443 端口)
-	client := &http.Client{Timeout: 5 * time.Second}
-	start := time.Now()
-
-	resp, err := client.Do(req)
-	duration := time.Since(start).Seconds() * 1000
-
+	// 2. 双通道查询（DoH 主 + UDP 备，或反之）
+	responseMsg, duration, err := queryDNSMsg(msg)
 	if err != nil {
 		return nil, duration, err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, duration, fmt.Errorf("DoH API returned status %d", resp.StatusCode)
-	}
-
-	// 5. 读取返回的二进制响应报文
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, duration, fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	// 6. 使用 miekg/dns 解包二进制响应
-	responseMsg := new(dns.Msg)
-	if err := responseMsg.Unpack(bodyBytes); err != nil {
-		return nil, duration, fmt.Errorf("failed to unpack DNS response: %v", err)
-	}
-
-	// 7. 检查 DNS 响应码 (Rcode)
+	// 3. 检查 DNS 响应码 (Rcode)
 	if responseMsg.Rcode != dns.RcodeSuccess {
 		return responseMsg, duration, fmt.Errorf("DNS query failed with Rcode %d", responseMsg.Rcode)
 	}

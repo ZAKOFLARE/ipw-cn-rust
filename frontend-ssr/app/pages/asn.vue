@@ -8,7 +8,7 @@ import { isIPv6 } from 'is-ip'
 const route = useRoute()
 
 useHead({
-  title: 'ASN查询 | IP自治系统号查询 | 柠檬味ipw.cn',
+  title: `ASN查询 | IP自治系统号查询 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的ASN自治系统查询工具,支持IP地址ASN号查询,提供Maxmind GEOLite2、DB-IP双数据源对比,同时集成WHOIS解析获取ASN详细信息,包括组织名称、国家、注册日期等,助力网络运维和路由分析' },
     { name: 'keywords', content: 'asn查询,自治系统号,asn lookup,ip asn,asn whois,网络自治系统,运营商asn,ip归属asn' },
@@ -35,7 +35,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

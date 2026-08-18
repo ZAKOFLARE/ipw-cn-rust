@@ -3,14 +3,18 @@ import { config } from '../config/index'
 
 // 构建中间件候选 URL 数组：
 // config.Middleware 外部节点（base URL + 相对路径）在前，
-// 前端自带中间件（传过来的相对路径本身，如 /middleware/...，由 Nuxt Server 的 [...slug].get.ts 处理）放最后一位。
-// 未配置 Middleware 数组或为空时，直接返回 [path]（只用前端自带中间件）。
+// 前端自带中间件（传过来的相对路径本身，如 /middleware/...，由 Nuxt Server 的 [...slug].get.ts 处理）放最后一位；
+// 若 config.EnableInternalMiddleware 为 false，候选列表不含内置中间件。
+// 未配置 Middleware 数组或为空时，仅用内置中间件（若同时禁用则为空候选，请求将全部失败）。
 function buildCandidates(path: string): string[] {
     const external: string[] = Array.isArray(config.Middleware)
         ? config.Middleware.filter((u): u is string => !!u)
         : []
-    if (external.length === 0) return [path]
-    return [...external.map(u => u.replace(/\/$/, '') + path), path]
+    const useInternal = config.EnableInternalMiddleware !== false
+    if (external.length === 0) return useInternal ? [path] : []
+    const candidates = external.map(u => u.replace(/\/$/, '') + path)
+    if (useInternal) candidates.push(path)
+    return candidates
 }
 
 // 获取错误的状态码：优先 status（ofetch 2.x），兼容 statusCode（旧版 ofetch）

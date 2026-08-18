@@ -11,7 +11,7 @@ const route = useRoute()
 const siteUrlWithSlash = computed(() => config.siteUrl.replace(/\/$/, '') + '/')
 
 useHead({
-  title: 'IPv6网站检测工具 | IPv6访问支持检查 | 柠檬味ipw.cn',
+  title: `IPv6网站检测工具 | IPv6访问支持检查 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的IPv6网站检测工具,全面检查网站是否支持IPv6访问,提供IPv4和IPv6双栈HTTP/HTTPS状态码、DNS解析时间、TCP连接时间、下载速度等详细对比数据,帮助网站管理员确认IPv6部署状态,提供IPv6徽标认证,推进IPv6规模部署和应用' },
     { name: 'keywords', content: 'ipv6网站检测,ipv6访问检测,ipv6支持检查,ipv6双栈检测,ipv6 http检测,ipv6 https检测,ipv6网站认证,ipv6徽标,ipv6部署' },
@@ -38,7 +38,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

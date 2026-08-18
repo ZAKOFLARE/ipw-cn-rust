@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"edgeone-cloud-functions/ssrf"
 	"github.com/likexian/whois"
 	"github.com/likexian/whois-parser"
 )
@@ -129,6 +130,22 @@ func resolveWhoisServer(ext string) (string, error) {
 	return server, nil
 }
 
+// filterPublicIPs 过滤掉 SSRF 私网 IP（仅在 ssrf 启用时生效）
+func filterPublicIPs(ips []string) []string {
+	if !ssrf.Enabled() {
+		return ips
+	}
+	filtered := make([]string, 0, len(ips))
+	for _, s := range ips {
+		ip := net.ParseIP(s)
+		if ip != nil && ssrf.IsPrivateIP(ip) {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+	return filtered
+}
+
 // resolveWhoisServerIPs 使用 webtest/dns 的统一解析接口
 // 并行查询 A + AAAA（走自定义 DNS 服务器，不受系统 resolver 策略影响）
 func resolveWhoisServerIPs(server string) (v4IPs, v6IPs []string, err error) {
@@ -154,8 +171,8 @@ func resolveWhoisServerIPs(server string) (v4IPs, v6IPs []string, err error) {
 		return nil, nil, fmt.Errorf("both A and AAAA DNS lookup failed for %s: A=%w, AAAA=%w", server, aErr, aaaaErr)
 	}
 
-	v4IPs = aResult.Record
-	v6IPs = aaaaResult.Record
+	v4IPs = filterPublicIPs(aResult.Record)
+	v6IPs = filterPublicIPs(aaaaResult.Record)
 
 	if len(v4IPs) == 0 && len(v6IPs) == 0 {
 		return nil, nil, fmt.Errorf("no IPs resolved for %s", server)

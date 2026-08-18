@@ -6,5 +6,6 @@
     "block-private-ips": true,
     "ipdb": true,
     "cors": "",
+    "remote-config-url": "",
     "access_token": ""
 }

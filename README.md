@@ -1,6 +1,7 @@
 # Lemon IPW
 
-ipw.cn 替代品，提供 IP 查询、网站检测、SSL 检查、DNS 解析、TCPing 测速、Whois、DNSSEC、ASN 查询、网站截图等功能。
+ipw.cn 替代品，提供 IP 查询、网站检测、SSL 检查、DNS 解析、TCPing 测速、Whois、DNSSEC、ASN 查询、网站截图等功能。  
+文档编写中....
 
 ## 功能
 
@@ -101,6 +102,22 @@ ipw-cn/
 | DNS 查询 | miekg/dns（Go）/ 原生 DNS-over-HTTPS（EdgeOne） |
 | 其他 | SSRF 防护、Zstandard 压缩、WordPress mshots 截图 |
 | 部署 | Docker、Cloudflare Workers、EdgeOne Pages |
+
+## 一键部署到 EdgeOne（Nuxt 原生支持）
+
+前端 `frontend-ssr/` 基于 Nuxt，腾讯云 EdgeOne 原生支持 Nuxt 构建，点击下方按钮即可通过 EdgeOne Makers 一键部署前端：
+
+[![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/makers/new?repository-url=https%3A%2F%2Fgithub.com%2Fnomdn%2Fipw-cn&root-directory=frontend-ssr&install-command=pnpm%20install&build-command=pnpm%20run%20build&output-directory=.output)
+
+| 按钮参数 | 值 | 说明 |
+|----------|-----|------|
+| `repository-url` | `https://github.com/nomdn/ipw-cn` | GitHub 仓库地址 |
+| `root-directory` | `frontend-ssr` | 构建根目录（前端源码所在目录） |
+| `install-command` | `pnpm install` | 依赖安装命令 |
+| `build-command` | `pnpm run build` | 构建命令（Nuxt 默认 SSR 构建） |
+| `output-directory` | `.output` | 构建产物输出目录（Nitro SSR 产物） |
+
+> 说明：EdgeOne Makers 原生支持 Nuxt 部署，SSR / SSG / ISR(SWR) / 中间件 / 流式传输均支持（Nuxt 3.16+，推荐 Nuxt 4），按钮默认以 **SSR** 方式构建。如需纯静态部署，可将 `build-command` 改为 `pnpm run generate`、`output-directory` 改为 `.output/public`。
 
 ## 快速开始
 
@@ -214,6 +231,9 @@ docker run -p 8080:8080 -v $(pwd)/setting.json:/app/setting.json lemon-ipw
 | `ipdb` | `IPDB` | `true` | IP 数据库开关 |
 | `access_token` | `ACCESS_TOKEN` | `""` | API 访问令牌 |
 | `cors` | `CORS` | `""` | 允许的请求来源 |
+| 远端配置 | `REMOTE_CONFIG_URL` | `""` | 远端配置文件 URL（遵守 `setting.json` 格式），优先级最高 |
+
+> 配置优先级：**远端配置（`REMOTE_CONFIG_URL`）> 环境变量 > setting.json**。远端配置 URL 可通过环境变量 `REMOTE_CONFIG_URL` 或 setting.json 的 `remote-config-url` 提供（环境变量优先）；远端配置本身需遵守 `setting.json` 的 JSON 格式（`port` / `gh-proxy` / `single-stack` / `dns-server` / `block-private-ips` / `ipdb` / `cors` 等），拉取或解析失败时自动回退到本地配置并打印警告。`access_token` 例外：**不随远端配置覆盖**，保持原有优先级（环境变量 > setting.json）。EdgeOne 版本（`edgeone/`）配置来源为 环境变量 + 远端配置。
 
 ### 前端配置
 

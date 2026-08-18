@@ -35,14 +35,13 @@ func ResolveDNSSEC(domain string) (*DNSSECResult, error) {
 		Domain: domain,
 	}
 
-	client := new(dns.Client)
 
 	// 1. 查询 DNSKEY 记录
 	msgDNSKEY := new(dns.Msg)
 	msgDNSKEY.SetQuestion(dns.Fqdn(domain), dns.TypeDNSKEY)
 	msgDNSKEY.SetEdns0(4096, true)
 
-	responseDNSKEY, _, err := client.Exchange(msgDNSKEY, dnsServer)
+	responseDNSKEY, err := queryDNS(msgDNSKEY)
 	result.Duration = time.Since(start).Seconds() * 1000
 
 	if err != nil {
@@ -75,7 +74,7 @@ func ResolveDNSSEC(domain string) (*DNSSECResult, error) {
 	msgA.SetQuestion(dns.Fqdn(domain), dns.TypeA)
 	msgA.SetEdns0(4096, true)
 
-	responseA, _, err := client.Exchange(msgA, dnsServer)
+	responseA, err := queryDNS(msgA)
 	if err == nil && responseA.Rcode == dns.RcodeSuccess {
 		var aRRset []dns.RR
 		for _, ans := range responseA.Answer {
@@ -118,7 +117,7 @@ func ResolveDNSSEC(domain string) (*DNSSECResult, error) {
 	// 4. 查询 DS 记录
 	msgDS := new(dns.Msg)
 	msgDS.SetQuestion(dns.Fqdn(domain), dns.TypeDS)
-	responseDS, _, _ := client.Exchange(msgDS, dnsServer)
+	responseDS, _ := queryDNS(msgDS)
 	if responseDS != nil && responseDS.Rcode == dns.RcodeSuccess {
 		for _, ans := range responseDS.Answer {
 			if _, ok := ans.(*dns.DS); ok {
@@ -156,12 +155,11 @@ func ResolveDNSSECForRecord(domain string, recordType uint16) (*DNSSECResult, er
 		Domain: domain,
 	}
 
-	client := new(dns.Client)
 	msg := new(dns.Msg)
 	msg.SetQuestion(dns.Fqdn(domain), recordType)
 	msg.SetEdns0(4096, true)
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	result.Duration = time.Since(start).Seconds() * 1000
 
 	if err != nil {
@@ -206,7 +204,7 @@ func ResolveDNSSECForRecord(domain string, recordType uint16) (*DNSSECResult, er
 	msgDNSKEY.SetQuestion(dns.Fqdn(domain), dns.TypeDNSKEY)
 	msgDNSKEY.SetEdns0(4096, true)
 
-	responseDNSKEY, _, err := client.Exchange(msgDNSKEY, dnsServer)
+	responseDNSKEY, err := queryDNS(msgDNSKEY)
 	if err == nil && responseDNSKEY.Rcode == dns.RcodeSuccess {
 		var dnskeyRRset []dns.RR
 		for _, ans := range responseDNSKEY.Answer {
@@ -239,7 +237,7 @@ func ResolveDNSSECForRecord(domain string, recordType uint16) (*DNSSECResult, er
 	// 查询 DS 记录
 	msgDS := new(dns.Msg)
 	msgDS.SetQuestion(dns.Fqdn(domain), dns.TypeDS)
-	responseDS, _, _ := client.Exchange(msgDS, dnsServer)
+	responseDS, _ := queryDNS(msgDS)
 	if responseDS != nil && responseDS.Rcode == dns.RcodeSuccess {
 		for _, ans := range responseDS.Answer {
 			if _, ok := ans.(*dns.DS); ok {

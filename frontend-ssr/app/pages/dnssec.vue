@@ -9,7 +9,7 @@ import { isIPv6 } from 'is-ip'
 const route = useRoute()
 
 useHead({
-  title: 'DNSSEC查询 | 域名DNSSEC验证检测 | 柠檬味ipw.cn',
+  title: `DNSSEC查询 | 域名DNSSEC验证检测 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的DNSSEC查询工具,支持域名DNSSEC验证检测,检查域名是否启用DNSSEC签名,验证DNSKEY、RRSIG、DS记录链式信任关系,检测域名DNS数据完整性和真实性,防止DNS欺骗和中间人攻击,保障域名解析安全' },
     { name: 'keywords', content: 'dnssec查询,dnssec验证,dnskey,rrsig,ds记录,域名安全,链式信任,dns欺骗防护,域名解析安全,dns签名验证' },
@@ -36,7 +36,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

@@ -1,10 +1,7 @@
 package webtest
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -258,44 +255,11 @@ func ResolveDNSSECForRecord(domain string, recordType uint16) (*DNSSECResult, er
 	return result, nil
 }
 
-// executeDoHQueryMsg 通过 DoH 发送 DNS 查询并返回解析后的响应消息
+// executeDoHQueryMsg 通过 queryDNSMsg（DoH+UDP 双通道）发送 DNS 查询并返回解析后的响应消息
 func executeDoHQueryMsg(msg *dns.Msg) (*dns.Msg, float64, error) {
-	packedMsg, err := msg.Pack()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to pack DNS message: %v", err)
-	}
-
-	req, err := http.NewRequest("POST", dohEndpoint, bytes.NewReader(packedMsg))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	req.Header.Set("Content-Type", "application/dns-message")
-	req.Header.Set("Accept", "application/dns-message")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	start := time.Now()
-
-	resp, err := client.Do(req)
-	duration := time.Since(start).Seconds() * 1000
-
+	responseMsg, duration, err := queryDNSMsg(msg)
 	if err != nil {
 		return nil, duration, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, duration, fmt.Errorf("DoH API returned status %d", resp.StatusCode)
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, duration, fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	responseMsg := new(dns.Msg)
-	if err := responseMsg.Unpack(bodyBytes); err != nil {
-		return nil, duration, fmt.Errorf("failed to unpack DNS response: %v", err)
 	}
 
 	if responseMsg.Rcode != dns.RcodeSuccess {

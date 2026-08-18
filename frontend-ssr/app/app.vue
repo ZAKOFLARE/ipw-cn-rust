@@ -41,23 +41,25 @@ interface NavDivider {
 type MenuEntry = NavItem | NavGroup | NavDivider
 
 const menu: MenuEntry[] = [
-  { kind: 'item', index: '1', label: 'IPv6 网站检测', to: '/ipv6webcheck', minWidth: 950 },
-  { kind: 'item', index: '2', label: 'IPv6/IPv4 地址查询', to: '/location', minWidth: 990 },
-  { kind: 'item', index: '3', label: 'IPv6 TCPing测试', to: '/ipv6tcping', minWidth: 1030 },
-  { kind: 'divider', minWidth: 1080 }, // 与 index 4 相同：4-6 段全折叠时隐藏
-  { kind: 'item', index: '4', label: 'IPv6 DNS解析', to: '/dns', minWidth: 1080 },
-  { kind: 'item', index: '5', label: 'IPv6 SSL检查', to: '/ssl', minWidth: 1130 },
-  { kind: 'item', index: '6', label: 'IPv6 网站测速', to: '/ipv6speedtest', minWidth: 1180 },
-  { kind: 'divider', minWidth: 1240 }, // 与 index 7 相同：7-9 段全折叠时隐藏
+  // 断点设计基准（从右往左折叠）：全显示约 1480px，1366 屏可用约 1350px，
+  // 故 1366 屏折叠 index 7/8/9（显示 1-6 +「更多」，约 1220px 宽裕）；1440 折叠 8/9；1500+ 全显示。
+  { kind: 'item', index: '1', label: 'IPv6 网站检测', to: '/ipv6webcheck', minWidth: 980 },
+  { kind: 'item', index: '2', label: 'IPv6/IPv4 地址查询', to: '/location', minWidth: 1040 },
+  { kind: 'item', index: '3', label: 'IPv6 TCPing测试', to: '/ipv6tcping', minWidth: 1100 },
+  { kind: 'divider', minWidth: 1160 }, // 与 index 4 相同：4-6 段全折叠时隐藏
+  { kind: 'item', index: '4', label: 'IPv6 DNS解析', to: '/dns', minWidth: 1160 },
+  { kind: 'item', index: '5', label: 'IPv6 SSL检查', to: '/ssl', minWidth: 1220 },
+  { kind: 'item', index: '6', label: 'IPv6 网站测速', to: '/ipv6speedtest', minWidth: 1280 },
+  { kind: 'divider', minWidth: 1380 }, // 与 index 7 相同：7-9 段全折叠时隐藏
   {
-    kind: 'group', index: '7', label: 'IPv4工具箱', minWidth: 1240,
+    kind: 'group', index: '7', label: 'IPv4工具箱', minWidth: 1380,
     children: [
       { index: '7-0', label: 'IPv4 网站测速', to: '/speedtest' },
       { index: '7-1', label: 'IPv4 TCPing测试', to: '/tcping' },
     ],
   },
   {
-    kind: 'group', index: '8', label: '其他工具', minWidth: 1300,
+    kind: 'group', index: '8', label: '其他工具', minWidth: 1420,
     children: [
       { index: '8-0', label: '网站截图', to: '/screenshot' },
       { index: '8-1', label: 'Whois查询', to: '/whois' },
@@ -65,7 +67,7 @@ const menu: MenuEntry[] = [
       { index: '8-4', label: 'DNSSEC验证', to: '/dnssec' },
     ],
   },
-  { kind: 'item', index: '9', label: '文档', to: '/doc', minWidth: 1360 },
+  { kind: 'item', index: '9', label: '文档', to: '/doc', minWidth: 1500 },
 ]
 
 // SSR 阶段无 window，默认按宽屏输出全部菜单项；onMounted 后更新为真实视口宽度
@@ -140,13 +142,13 @@ onMounted(() => {
       <router-link to="/ssl">
         <p class="menu-item-text">IPv6 SSL检查</p>
       </router-link>
-      <a href="/ipv6speedtest"><p class="menu-item-text">IPv6 网站测速</p></a>
-      <a href="/speedtest"><p class="menu-item-text">IPv4 网站测速</p></a>
-      <a href="/tcping"><p class="menu-item-text">IPv4 TCPing</p></a>
-      <a href="/screenshot"><p class="menu-item-text">网站截图</p></a>
-      <a href="/whois"><p class="menu-item-text">Whois查询</p></a>
-      <a href="/asn"><p class="menu-item-text">ASN查询</p></a>
-      <a href="/dnssec"><p class="menu-item-text">DNSSEC验证</p></a>
+      <router-link to="/ipv6speedtest"><p class="menu-item-text">IPv6 网站测速</p></router-link>
+      <router-link to="/speedtest"><p class="menu-item-text">IPv4 网站测速</p></router-link>
+      <router-link to="/tcping"><p class="menu-item-text">IPv4 TCPing</p></router-link>
+      <router-link to="/screenshot"><p class="menu-item-text">网站截图</p></router-link>
+      <router-link to="/whois"><p class="menu-item-text">Whois查询</p></router-link>
+      <router-link to="/asn"><p class="menu-item-text">ASN查询</p></router-link>
+      <router-link to="/dnssec"><p class="menu-item-text">DNSSEC验证</p></router-link>
   </el-drawer>
   <el-menu
       mode="horizontal"
@@ -157,7 +159,7 @@ onMounted(() => {
       <el-icon v-if="isNarrow" @click="drawer = !drawer"><Expand /></el-icon>
       <router-link to="/">
         <el-image src="/favicon.svg" style="margin-top: 20px;" /> 
-        <h2 style="display: inline-block; margin-left: 10px" v-if="!isNarrow">柠檬味ipw.cn</h2>
+        <h2 style="display: inline-block; margin-left: 10px" v-if="!isNarrow">{{ config.siteName }}</h2>
       </router-link>
     </el-menu-item>
     

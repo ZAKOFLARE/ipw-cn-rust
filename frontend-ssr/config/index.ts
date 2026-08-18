@@ -4,6 +4,12 @@
 */
 const config = {
     siteUrl: "https://ipw.wsmdn.top/",
+    // 站点名称：用于页面标题 / 描述 / 页脚品牌展示
+    siteName: "柠檬味ipw.cn",
+    // 是否启用前端内置中间件（server/routes/middleware/[...slug].get.ts 本地转发）。
+    // true（默认）：/middleware/* 候选为「外部节点… + 内置中间件（最后一位兜底）」；
+    // false：仅使用外部节点，候选列表不含内置中间件。
+    EnableInternalMiddleware: true,
     // 外部独立中间件服务列表（base URL）。
     // 与前端自带中间件（server/routes/middleware/[...slug].get.ts 本地转发）同级，
     // 前端 /middleware/* 请求会依次尝试这些节点（出错重试下一个），
@@ -21,6 +27,8 @@ const config = {
     // 中华人民共和国备案系统
     ICP: "苏ICP备2026012471号",
     GongAn: "苏公网安备32132402000813号",
+    // 全站是否禁止搜索引擎索引
+    noindex: false,
     // Worker IP查询接口
     v4OnlyAPI: "https://4.wsmdn.top",
     v6OnlyAPI: "https://6.wsmdn.top",
@@ -49,8 +57,6 @@ const config = {
             url: "https://cn2-sichuan.api-ipw.wsmdn.top/"
         }
     ],
-    // 全站是否禁止搜索引擎索引
-    noindex: false,
     TCPing:{
         DualStack: [
             {

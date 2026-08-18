@@ -11,11 +11,11 @@ const route = useRoute();
 const loading = ref(false);
 
 useHead({
-  title: 'IPv6/IPv4地址查询工具 | IP归属地定位 | 柠檬味ipw.cn',
+  title: `IPv6/IPv4地址查询工具 | IP归属地定位 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的IPv6/IPv4地址查询工具,支持IPv4和IPv6地址归属地查询,提供BiliBili Live、GeoCN、IP2Region、Maxmind等多种数据源对比,精确定位IP地理位置、运营商信息,支持中国大陆及境外地址查询,助力IPv6普及与应用' },
     { name: 'keywords', content: 'ipv6地址查询,ipv4地址查询,ip归属地,ip地理位置,ip定位,运营商查询,ipv6归属地,ipv4归属地,maxmind,ip2region,geocn' },
-    { property: 'og:title', content: 'IPv6/IPv4地址归属地查询工具 - 柠檬味ipw.cn' },
+    { property: 'og:title', content: `IPv6/IPv4地址归属地查询工具 - ${config.siteName}` },
     { property: 'og:description', content: '多数据源IP地址归属地查询,支持IPv4和IPv6,提供地理位置、运营商等详细信息' },
     { property: 'og:image', content: config.siteUrl + 'favicon.svg' },
     { property: 'og:type', content: 'website' },
@@ -38,7 +38,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

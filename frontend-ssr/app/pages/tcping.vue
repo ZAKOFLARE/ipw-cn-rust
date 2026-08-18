@@ -8,7 +8,7 @@ import { extractHost } from '../../utils/tools';
 const route = useRoute()
 
 useHead({
-  title: 'TCPing测试工具 | IPv4服务器连通性检测 | 柠檬味ipw.cn',
+  title: `TCPing测试工具 | IPv4服务器连通性检测 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的IPv4 TCPing测试工具,提供多节点TCP连通性检测服务,支持自定义端口测试,实时检测服务器丢包率、平均延迟、最大最小响应时间,帮助运维人员快速诊断服务器网络质量,确保服务稳定运行' },
     { name: 'keywords', content: 'tcping测试,tcp连通性检测,ipv4 tcping,服务器延迟测试,丢包率检测,端口连通性,服务器网络测试,网络质量检测' },
@@ -35,7 +35,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

@@ -8,7 +8,7 @@ import { formatTime } from '../../utils/tools';
 const route = useRoute()
 
 useHead({
-  title: 'DNS查询工具 | 多节点域名解析检测 | 柠檬味ipw.cn',
+  title: `DNS查询工具 | 多节点域名解析检测 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的多节点DNS查询工具,支持A记录、AAAA记录、CNAME记录、MX记录、NS记录、TXT记录、SRV记录、CAA记录等多种DNS解析记录查询,提供全国多节点并发检测,快速返回DNS解析结果,助力域名解析问题排查与优化' },
     { name: 'keywords', content: 'dns查询,dns解析,域名解析,a记录查询,aaaa记录,cname记录,mx记录,ns记录,txt记录,srv记录,dns服务器,域名dns检测' },
@@ -35,7 +35,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

@@ -10,7 +10,7 @@ const route = useRoute()
 const siteUrlWithSlash = computed(() => config.siteUrl.replace(/\/$/, '') + '/')
 
 useHead({
-  title: 'SSL证书检测工具 | IPv4/IPv6证书检查 | 柠檬味ipw.cn',
+  title: `SSL证书检测工具 | IPv4/IPv6证书检查 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的SSL证书检测工具,全面检查网站的IPv4和IPv6 SSL证书状态、有效期、签发机构、HTTP版本等信息,支持HTTPS状态码检测、下载速度测试,帮助网站管理员及时发现证书问题,确保网站安全访问' },
     { name: 'keywords', content: 'ssl证书检测,ssl检查,https证书,ipv6 ssl,ipv4 ssl,证书有效期,ssl状态,https检测,网站安全,证书签发机构' },
@@ -37,7 +37,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

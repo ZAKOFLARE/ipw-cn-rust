@@ -80,6 +80,11 @@ jobs:
                 CGO_ENABLED=0 GOOS=freebsd GOARCH=386 go build -ldflags "$LDFLAGS" -o ../middleware-go-freebsd-386
                 CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ../middleware-go-freebsd-amd64
                 CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ../middleware-go-freebsd-arm64
+            - name: Prepare config files for release
+              run: |
+                # 后端：发布真实 setting.json（重命名为 setting.json.example）；中间件：只发布 setting.json.example
+                cp setting.json setting.json.example
+                cp middleware-go/setting.json.example middleware.setting.json.example
             - name: Release
               uses: softprops/action-gh-release@v3
               if: github.ref_type == 'tag'
@@ -89,6 +94,24 @@ jobs:
                 token: ${{ secrets.MINT_TOKEN }}
                 
                 generate_release_notes: true
+                body: |
+                  ## 配置文件说明
+
+                  Release 附带两份配置文件（**.example** 后缀用于标识，需重命名后使用）：
+
+                  | 发布文件 | 重命名为 | 放置位置 |
+                  |----------|----------|----------|
+                  | `setting.json.example` | `setting.json` | 主程序（后端测试节点）同目录 |
+                  | `middleware.setting.json.example` | `setting.json` | `middleware-go/` 目录 |
+
+                  ```bash
+                  # 后端测试节点
+                  cp setting.json.example setting.json
+
+                  # 独立中间件
+                  cp middleware.setting.json.example middleware-go/setting.json
+                  ```
+
                 files: |
                   lemonipw-linux-386
                   lemonipw-linux-amd64
@@ -118,3 +141,5 @@ jobs:
                   middleware-go-freebsd-386
                   middleware-go-freebsd-amd64
                   middleware-go-freebsd-arm64
+                  setting.json.example
+                  middleware.setting.json.example

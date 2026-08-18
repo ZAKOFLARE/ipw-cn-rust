@@ -70,7 +70,11 @@ export default defineNuxtConfig({
 
     },
   },
-nitro: {
+  routeRules: {
+    // /doc 文档站改为 SSG：构建时预渲染为静态 HTML，由边缘静态资源直接响应
+    '/doc/**': { prerender: true },
+  },
+  nitro: {
     publicAssets: [
       {
         dir: 'public',
@@ -81,7 +85,12 @@ nitro: {
       options: {
         target: 'es2022' // 明确告诉 Nitro 使用 es2022 进行打包
       }
-    }
+    },
+    prerender: {
+      // 显式列出所有 doc 路由（来自 config/doc.ts 的 docConfig 键），
+      // 让动态 [...slug] 页面在构建时全部预渲染为静态 HTML
+      routes: ['/doc', ...Object.keys(docConfig).filter((p) => p !== '/doc')],
+    },
   },
   security: {
     headers: {

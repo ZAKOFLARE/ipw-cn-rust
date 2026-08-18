@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"edgeone-cloud-functions/ssrf"
 	"edgeone-cloud-functions/webtest"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1079,20 +1080,131 @@ func whoisHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func dnssecHandler(c *gin.Context) {
+	domain := c.Param("domain")
+	if domain == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Domain parameter is required",
+		})
+		return
+	}
+
+	result, err := webtest.ResolveDNSSEC(domain)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func healchCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
 }
+// fetchRemoteConfig 从远端 URL 拉取配置文件（遵守 setting.json 的 JSON 格式）。
+// 拉取或解析失败时返回错误，调用方应回退到本地配置。
+func fetchRemoteConfig(url string) (map[string]any, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("remote config returned status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var CONFIG map[string]any
+	if err := json.Unmarshal(body, &CONFIG); err != nil {
+		return nil, fmt.Errorf("invalid remote config JSON: %w", err)
+	}
+	return CONFIG, nil
+}
+
+// configValue 返回配置 map 中指定 key 的非空字符串值；
+// key 不存在或值为空时返回 ""（表示不覆盖本地配置）。
+func configValue(CONFIG map[string]any, key string) string {
+	v, ok := CONFIG[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch s := v.(type) {
+	case string:
+		return strings.TrimSpace(s)
+	case float64:
+		return fmt.Sprintf("%.0f", s)
+	case bool:
+		return strconv.FormatBool(s)
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	}
+}
+
+// applyRemoteConfig 从环境变量 REMOTE_CONFIG_URL 拉取远端配置并覆盖本地配置。
+// 优先级：远端配置 > 环境变量 > setting.json。
+func applyRemoteConfig() {
+	url := os.Getenv("REMOTE_CONFIG_URL")
+	if url == "" {
+		return
+	}
+	CONFIG, err := fetchRemoteConfig(url)
+	if err != nil {
+		slog.Warn("Failed to fetch remote config, falling back to local config", "url", url, "error", err)
+		return
+	}
+	if v := configValue(CONFIG, "port"); v != "" {
+		PORTS = v
+	}
+	if v := configValue(CONFIG, "single-stack"); v != "" {
+		SINGLE_STACK = strings.ToLower(v)
+	}
+	if v := configValue(CONFIG, "dns-server"); v != "" {
+		DNS_SERVER = v
+	}
+	if v := configValue(CONFIG, "cors"); v != "" {
+		CORS = v
+	}
+	if v := configValue(CONFIG, "block-private-ips"); v != "" {
+		ssrf.SetEnabled(v != "false" && v != "0")
+	}
+	if CORS != "" {
+		ACCEPT_DOMAINS = strings.Split(CORS, ",")
+	}
+	slog.Info("Remote config applied", "url", url)
+}
+
+// readConfig 加载配置：环境变量为本地来源，远端配置（REMOTE_CONFIG_URL）优先级最高。
 func readConfig() {
-	PORTS = os.Getenv("PORTS")
-	if PORTS == ""{
+	// 1) 环境变量
+	if v := os.Getenv("PORTS"); v != "" {
+		PORTS = v
+	}
+	if PORTS == "" {
 		PORTS = os.Getenv("PORT")
 	}
-	SINGLE_STACK = os.Getenv("SINGLE_STACK")
-	DNS_SERVER = os.Getenv("DNS_SERVER")
-	CORS = os.Getenv("CORS")
-	ssrf.SetEnabled(os.Getenv("BLOCK_PRIVATE_IPS") != "false" && os.Getenv("BLOCK_PRIVATE_IPS") != "0")
+	if v := os.Getenv("SINGLE_STACK"); v != "" {
+		SINGLE_STACK = strings.ToLower(strings.TrimSpace(v))
+	}
+	if v := os.Getenv("DNS_SERVER"); v != "" {
+		DNS_SERVER = v
+	}
+	if v := os.Getenv("CORS"); v != "" {
+		CORS = v
+	}
+	if v := os.Getenv("BLOCK_PRIVATE_IPS"); v != "" {
+		ssrf.SetEnabled(v != "false" && v != "0")
+	}
+
+	// 2) 远端配置（最高优先级，覆盖环境变量）
+	applyRemoteConfig()
+
 	if PORTS == "" {
 		PORTS = "8080"
 	}
@@ -1121,6 +1233,7 @@ func main() {
 	r.GET("/v1/tcping/:ip", pingHandler)
 	r.GET("/v1/dns/:type/*domain", dnsQueryHandler)
 	r.GET("/v1/whois/:domain", whoisHandler)
+	r.GET("/v1/dnssec/:domain", dnssecHandler)
 	r.GET("/v1/speed/:version/*url", websiteSpeedTestHandler)
 	r.GET("/", healchCheck)
 

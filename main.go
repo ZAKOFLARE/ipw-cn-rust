@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io"
 	"lemon-ipw/ipdb"
@@ -251,11 +252,12 @@ var (
 	V4Client       *resty.Client
 	IPDB           string
 	CORS           string
-	ACCEPT_DOMAINS []string
-	ACCESS_TOKEN   string
-	VERSION        string
-	COMMIT         string
-	BUILD_TIME     string
+	ACCEPT_DOMAINS     []string
+	ACCESS_TOKEN       string
+	REMOTE_CONFIG_URL  string
+	VERSION            string
+	COMMIT             string
+	BUILD_TIME         string
 )
 
 type websiteCacheEntry struct {
@@ -1227,6 +1229,91 @@ func tokenCheck() gin.HandlerFunc {
 		}
 	}
 }
+// fetchRemoteConfig 从远端 URL 拉取配置文件（遵守 setting.json 的 JSON 格式）。
+// 拉取或解析失败时返回错误，调用方应回退到本地配置。
+func fetchRemoteConfig(url string) (map[string]any, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("remote config returned status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var CONFIG map[string]any
+	if err := json.Unmarshal(body, &CONFIG); err != nil {
+		return nil, fmt.Errorf("invalid remote config JSON: %w", err)
+	}
+	return CONFIG, nil
+}
+
+// configValue 返回配置 map 中指定 key 的非空字符串值；
+// key 不存在或值为空时返回 ""（表示不覆盖本地配置）。
+func configValue(CONFIG map[string]any, key string) string {
+	v, ok := CONFIG[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch s := v.(type) {
+	case string:
+		return strings.TrimSpace(s)
+	case float64:
+		return fmt.Sprintf("%.0f", s)
+	case bool:
+		return strconv.FormatBool(s)
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	}
+}
+
+// applyRemoteConfig 从远端配置 URL（REMOTE_CONFIG_URL，可由环境变量或 setting.json
+// 的 remote-config-url 提供）拉取配置并覆盖本地配置。
+// 优先级：远端配置 > 环境变量 > setting.json。
+// access_token 例外：保持原有优先级（环境变量 > setting.json），不随远端配置覆盖。
+func applyRemoteConfig() {
+	url := REMOTE_CONFIG_URL
+	if url == "" {
+		return
+	}
+	CONFIG, err := fetchRemoteConfig(url)
+	if err != nil {
+		slog.Warn("Failed to fetch remote config, falling back to local config", "url", url, "error", err)
+		return
+	}
+	if v := configValue(CONFIG, "port"); v != "" {
+		PORTS = v
+	}
+	if v := configValue(CONFIG, "gh-proxy"); v != "" {
+		GH_PROXY = v
+	}
+	if v := configValue(CONFIG, "single-stack"); v != "" {
+		SINGLE_STACK = strings.ToLower(v)
+	}
+	if v := configValue(CONFIG, "dns-server"); v != "" {
+		DNS_SERVER = v
+	}
+	if v := configValue(CONFIG, "ipdb"); v != "" {
+		IPDB = v
+	}
+	if v := configValue(CONFIG, "cors"); v != "" {
+		CORS = v
+	}
+	// block-private-ips 与 setting.json 格式一致，允许远端覆盖
+	if v := configValue(CONFIG, "block-private-ips"); v != "" {
+		ssrf.SetEnabled(v != "false" && v != "0")
+	}
+	// access_token 不在此覆盖：保持原有优先级（环境变量 > setting.json）
+	if CORS != "" {
+		ACCEPT_DOMAINS = strings.Split(CORS, ",")
+	}
+	slog.Info("Remote config applied", "url", url)
+}
+
 func readConfig() {
 	PORTS = os.Getenv("PORTS")
 	GH_PROXY = os.Getenv("GH_PROXY")
@@ -1275,6 +1362,12 @@ func readConfig() {
 	if ACCESS_TOKEN == "" {
 		ACCESS_TOKEN = viper.GetString("access_token")
 	}
+	// REMOTE_CONFIG_URL 优先级：环境变量 > setting.json 的 remote-config-url
+	REMOTE_CONFIG_URL = os.Getenv("REMOTE_CONFIG_URL")
+	if REMOTE_CONFIG_URL == "" {
+		REMOTE_CONFIG_URL = viper.GetString("remote-config-url")
+	}
+	applyRemoteConfig()
 	slog.Info("SSRF protection initialized", "blockPrivateIPs", ssrf.Enabled())
 }
 

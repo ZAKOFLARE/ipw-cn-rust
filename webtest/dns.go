@@ -1,8 +1,12 @@
 package webtest
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,11 +17,78 @@ var (
 	dnsServer = "119.28.28.28:53"
 )
 
-// SetDNSServer 设置DNS服务器地址（格式: "ip:port"）
+// SetDNSServer 设置DNS服务器地址（格式: "ip:port"，也支持 DoH URL http(s)://...）
 func SetDNSServer(server string) {
 	if server != "" {
 		dnsServer = server
 	}
+}
+
+const (
+	defaultUDPServer   = "119.28.28.28:53"
+	defaultDoHEndpoint = "https://doh.pub/dns-query"
+)
+
+// queryDNS 统一 DNS 查询入口：支持 DoH 与 UDP 双通道自动互备。
+// dnsServer 配置为 URL（http/https）时优先 DoH，失败回退 UDP（defaultUDPServer）；
+// 配置为 ip:port 时优先 UDP，失败回退 DoH（defaultDoHEndpoint）。
+func queryDNS(msg *dns.Msg) (*dns.Msg, error) {
+	if strings.HasPrefix(dnsServer, "http://") || strings.HasPrefix(dnsServer, "https://") {
+		resp, err := queryDoHMsg(msg, dnsServer)
+		if err == nil {
+			return resp, nil
+		}
+		slog.Warn("DoH query failed, falling back to UDP", "endpoint", dnsServer, "error", err)
+		return queryUDPMsg(msg, defaultUDPServer)
+	}
+	resp, err := queryUDPMsg(msg, dnsServer)
+	if err == nil {
+		return resp, nil
+	}
+	slog.Warn("UDP query failed, falling back to DoH", "server", dnsServer, "error", err)
+	return queryDoHMsg(msg, defaultDoHEndpoint)
+}
+
+// queryUDPMsg 通过 UDP/TCP 向指定 DNS 服务器发送查询（miekg/dns 自动处理大响应切 TCP）
+func queryUDPMsg(msg *dns.Msg, server string) (*dns.Msg, error) {
+	client := &dns.Client{Timeout: 5 * time.Second}
+	resp, _, err := client.Exchange(msg, server)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// queryDoHMsg 通过 DoH（RFC 8484，POST application/dns-message）向指定端点发送查询
+func queryDoHMsg(msg *dns.Msg, endpoint string) (*dns.Msg, error) {
+	packedMsg, err := msg.Pack()
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack DNS message: %v", err)
+	}
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(packedMsg))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/dns-message")
+	req.Header.Set("Accept", "application/dns-message")
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("DoH API returned status %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+	responseMsg := new(dns.Msg)
+	if err := responseMsg.Unpack(bodyBytes); err != nil {
+		return nil, fmt.Errorf("failed to unpack DNS response: %v", err)
+	}
+	return responseMsg, nil
 }
 
 // DNSResult 统一的DNS查询结果格式
@@ -31,11 +102,10 @@ type DNSResult struct {
 func ResolveARecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeA)
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -66,12 +136,11 @@ func ResolveARecord(domain string) (DNSResult, error) {
 func ResolveAAAARecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeAAAA)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -102,12 +171,11 @@ func ResolveAAAARecord(domain string) (DNSResult, error) {
 func ResolveTXTRecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeTXT)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -140,12 +208,11 @@ func ResolveTXTRecord(domain string) (DNSResult, error) {
 func ResolveNSRecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeNS)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -176,12 +243,11 @@ func ResolveNSRecord(domain string) (DNSResult, error) {
 func ResolveCNAMERecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeCNAME)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -212,12 +278,11 @@ func ResolveCNAMERecord(domain string) (DNSResult, error) {
 func ResolveMXRecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeMX)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -248,12 +313,11 @@ func ResolveMXRecord(domain string) (DNSResult, error) {
 func ResolveSRVRecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeSRV)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -291,12 +355,11 @@ func ResolvePTRRecord(ip string) (DNSResult, error) {
 	}
 
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(ptrName, dns.TypePTR)
 
 	result := DNSResult{Domain: ip}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {
@@ -327,12 +390,11 @@ func ResolvePTRRecord(ip string) (DNSResult, error) {
 func ResolveCAARecord(domain string) (DNSResult, error) {
 	start := time.Now()
 	msg := new(dns.Msg)
-	client := new(dns.Client)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeCAA)
 
 	result := DNSResult{Domain: domain}
 
-	response, _, err := client.Exchange(msg, dnsServer)
+	response, err := queryDNS(msg)
 	duration := time.Since(start).Seconds() * 1000
 	result.Duration = duration
 	if err != nil {

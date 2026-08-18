@@ -9,15 +9,15 @@ const route = useRoute();
 const canonicalUrl = computed(() => new URL(route.path, config.siteUrl).toString());
 
 useHead({
-  title: '柠檬味ipw.cn | IP查询工具 | IPv4/IPv6地址查询与网络测试平台',
+  title: `${config.siteName} | IP查询工具 | IPv4/IPv6地址查询与网络测试平台`,
   titleTemplate: '%s',
   link: [
     { rel: 'canonical', href: canonicalUrl.value }
   ],
   meta: [
-    { name: 'description', content: '柠檬味ipw.cn提供专业的IP查询服务,支持IPv4和IPv6地址在线查询、归属地定位、网络测速、DNS解析、SSL证书检测、TCPing测试等多种网络工具,致力于推进IPv6规模部署和应用,打造去中心化的IP查询平台' },
+    { name: 'description', content: `${config.siteName}提供专业的IP查询服务,支持IPv4和IPv6地址在线查询、归属地定位、网络测速、DNS解析、SSL证书检测、TCPing测试等多种网络工具,致力于推进IPv6规模部署和应用,打造去中心化的IP查询平台` },
     { name: 'keywords', content: 'ipv6,ipv4,ip查询,ipv6查询,ipv4查询,ipv6地址查询,ipv4地址查询,网络测速,DNS查询,SSL检测,TCPing,IP归属地,IPv6优先' },
-    { property: 'og:title', content: '柠檬味ipw.cn - 专业IP查询与网络测试工具平台' },
+    { property: 'og:title', content: `${config.siteName} - 专业IP查询与网络测试工具平台` },
     { property: 'og:description', content: '提供IPv4/IPv6地址查询、网络测速、DNS解析、SSL检测等全方位网络诊断工具,助力IPv6普及与部署' },
     { property: 'og:image', content: `${config.siteUrl}favicon.svg` },
     { property: 'og:type', content: 'website' },
@@ -30,8 +30,8 @@ useHead({
       innerHTML: JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
-        name: '柠檬味ipw.cn',
-        description: '柠檬味ipw.cn提供专业的IP查询服务,支持IPv4和IPv6地址在线查询、归属地定位、网络测速、DNS解析、SSL证书检测、TCPing测试等多种网络工具,致力于推进IPv6规模部署和应用,打造去中心化的IP查询平台',
+        name: config.siteName,
+        description: `${config.siteName}提供专业的IP查询服务,支持IPv4和IPv6地址在线查询、归属地定位、网络测速、DNS解析、SSL证书检测、TCPing测试等多种网络工具,致力于推进IPv6规模部署和应用,打造去中心化的IP查询平台`,
         url: canonicalUrl.value,
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Any',

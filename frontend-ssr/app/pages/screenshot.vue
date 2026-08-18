@@ -10,7 +10,7 @@ const route = useRoute()
 const url = ref('')
 
 useHead({
-  title: '网站截图工具 - '+(route.query.site || '柠檬味ipw.cn'),
+  title: '网站截图工具 - '+(route.query.site || config.siteName),
   meta: [
     { name: 'description', content: '在线网站截图工具，输入网址即可获取网页快照，支持所有公开网站的实时截图，方便查看网站布局和设计效果' },
     { name: 'keywords', content: '网站截图,网页快照,在线截图,网页预览,网站布局查看,截图工具' },

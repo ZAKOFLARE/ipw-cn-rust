@@ -8,7 +8,7 @@ import { extractHost } from '../../utils/tools';
 const route = useRoute()
 
 useHead({
-  title: 'IPv6 TCPing测试工具 | IPv6服务器连通性检测 | 柠檬味ipw.cn',
+  title: `IPv6 TCPing测试工具 | IPv6服务器连通性检测 | ${config.siteName}`,
   meta: [
     { name: 'description', content: '专业的IPv6 TCPing测试工具,提供多节点IPv6 TCP连通性检测服务,支持自定义端口测试,实时检测IPv6服务器丢包率、平均延迟、最大最小响应时间,助力IPv6网络质量诊断与优化,推进IPv6规模部署和应用' },
     { name: 'keywords', content: 'ipv6 tcping测试,ipv6连通性检测,ipv6服务器延迟,ipv6丢包率,ipv6端口测试,ipv6网络质量,ipv6服务器测试,ipv6网络诊断' },
@@ -35,7 +35,7 @@ useHead({
         },
         provider: {
           '@type': 'Organization',
-          name: '柠檬味ipw.cn'
+          name: config.siteName
         }
       })
     }

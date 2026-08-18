@@ -8,7 +8,7 @@ import { isIPv6 } from 'is-ip'
 const route = useRoute()
 
 useHead({
-  title: 'Whois查询 | ' + (route.query.site || '柠檬味ipw.cn'),
+  title: 'Whois查询 | ' + (route.query.site || config.siteName),
   titleTemplate: '%s',
   link: [
     { rel: 'canonical', href: computed(() => new URL(route.path, config.siteUrl).toString()).value }
