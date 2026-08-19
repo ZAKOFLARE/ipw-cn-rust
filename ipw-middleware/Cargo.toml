@@ -1,0 +1,18 @@
+[package]
+name = "ipw-middleware"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lemon IPW forwarding middleware (Rust rewrite)"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli", "http2"] }
+url = "2"
+percent-encoding = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

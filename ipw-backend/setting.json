@@ -1,0 +1,9 @@
+{
+    "port": 8080,
+    "single-stack": "",
+    "dns-server": "",
+    "block-private-ips": true,
+    "cors": "",
+    "remote-config-url": "",
+    "access_token": ""
+}
