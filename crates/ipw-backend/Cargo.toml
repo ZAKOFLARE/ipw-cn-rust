@@ -1,0 +1,28 @@
+[package]
+name = "ipw-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lemon IPW self-hosted backend (Rust rewrite)"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-no-provider", "zstd", "gzip", "brotli", "http2", "stream"] }
+hickory-proto = { version = "0.25", features = ["dnssec-ring"] }
+hickory-resolver = { version = "0.25", features = ["https-ring", "dnssec-ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+x509-parser = "0.16"
+ring = "0.17"
+url = "2"
+regex = "1"
+moka = "0.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
